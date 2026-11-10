@@ -3,740 +3,199 @@
 </p>
 
 <p align="center">
-  <a href="https://www.powershellgallery.com/packages/TechToolbox" target="_blank">
-    <img src="assets/badges/techtoolbox-version.svg" />
-  </a>
-  <a href="https://www.powershellgallery.com/packages/TechToolbox" target="_blank">
-    <img src="assets/badges/techtoolbox-downloads.svg" />
-  </a>
-  <a href="https://github.com/dan-damit/TechToolbox/releases" target="_blank">
-    <img src="assets/badges/techtoolbox-release.svg" />
-  </a>
-  <a href="https://learn.microsoft.com/powershell/scripting/install/installing-powershell" target="_blank">
-    <img src="assets/badges/techtoolbox-requires.svg" />
-  </a>
-  <a href="https://thedamits.com/" target="_blank">
-    <img src="assets/badges/powered-by-techtoolbox.svg" />
-  </a>
+  <a href="https://www.powershellgallery.com/packages/TechToolbox"><img src="assets/badges/techtoolbox-version.svg" /></a>
+  <a href="https://www.powershellgallery.com/packages/TechToolbox"><img src="assets/badges/techtoolbox-downloads.svg" /></a>
+  <a href="https://github.com/dan-damit/TechToolbox/releases"><img src="assets/badges/techtoolbox-release.svg" /></a>
+  <a href="https://learn.microsoft.com/powershell/scripting/install/installing-powershell"><img src="assets/badges/techtoolbox-requires.svg" /></a>
+  <a href="https://thedamits.com/"><img src="assets/badges/powered-by-techtoolbox.svg" /></a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml">
-    <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/update-badges.yml/badge.svg" />
-  </a>
-  <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml">
-    <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/publish.yml/badge.svg" />
-  </a>
-  <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/techshell-winget-release.yml">
-    <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/techshell-winget-release.yml/badge.svg" />
-  </a>
-  <a href="https://github.com/dan-damit/TechToolbox/actions/workflows/winget-manifest-validate.yml">
-    <img src="https://github.com/dan-damit/TechToolbox/actions/workflows/winget-manifest-validate.yml/badge.svg" />
-  </a>
-</p>
+## TechToolbox
 
-## Executive Summary
+TechToolbox is a PowerShell 7.4+ module for identity, Microsoft 365, diagnostics,
+endpoint maintenance, networking, remoting, and AI-assisted workflows. Its
+commands use shared configuration, logging, worker, and path helpers.
 
-TechToolbox brings together identity, security, compliance, system diagnostics,
-remote execution, browser cleanup, networking, and AI-assisted operations in one
-portable, scriptable module. It standardizes configuration, logging, worker
-patterns, and reusable automation flows so teams can move from ad hoc scripting
-to governed, repeatable operational workflows.
+TechAgent is a tool-using agent hosted by the module, with .NET source in
+`src/TechToolbox.Agent`. It supports Ollama and cloud LLM providers, configured
+MCP tool servers, optional memory and retrieval, and runtime safety checks. The
+model proposes actions; the runtime and tool policies govern tool execution.
+Destructive actions require operator approval when prompted.
 
-Built for real-world enterprise environments, TechToolbox supports Active
-Directory lifecycle tasks, Exchange Online and Purview operations, remote
-diagnostics, endpoint maintenance, and provider-based AI execution with Ollama,
-OpenAI, Azure OpenAI, and compatible APIs. With built-in quality controls,
-telemetry, and operational safety patterns, it helps admins and engineers
-automate complex work with clarity, confidence, and consistency.
-
-## Contents
-
-- [Executive Summary](#executive-summary)
-- [Contents](#contents)
-- [Quick Start](#quick-start)
-  - [One-Liner Demos](#one-liner-demos)
-  - [Updatable Help Feed (Maintainers)](#updatable-help-feed-maintainers)
-- [Architecture Overview](#architecture-overview)
-  - [Module Layers](#module-layers)
-  - [How the Loader Works](#how-the-loader-works)
-  - [Path Tokens](#path-tokens)
-  - [TechAgent Architectural Principle](#techagent-architectural-principle)
-- [Configuration](#configuration)
-  - [Environment Variables](#environment-variables)
-  - [Configuring Secrets](#configuring-secrets)
-  - [Baseline Settings (config.json)](#baseline-settings-configjson)
-- [Invoke-TechAgent Prompt Example](#invoke-techagent-prompt-example)
-  - [Preferred prompt workflow](#preferred-prompt-workflow)
-  - [Retrieval backends (RAG)](#retrieval-backends-rag)
-  - [Reasoning effort (GPT-5.3-Codex)](#reasoning-effort-gpt-53-codex)
-  - [Example: provider and quality controls](#example-provider-and-quality-controls)
-  - [Example: stage a task, then run it](#example-stage-a-task-then-run-it)
-  - [Example: Creating an Online Help Markdown File](#example-creating-an-online-help-markdown-file)
-- [Command Reference](#command-reference)
-  - [Active Directory \& Identity Management](#active-directory--identity-management)
-  - [Exchange Online \& Compliance](#exchange-online--compliance)
-  - [System Diagnostics \& Health](#system-diagnostics--health)
-  - [Endpoint \& Infrastructure Operations](#endpoint--infrastructure-operations)
-  - [Remote Execution \& Worker Patterns](#remote-execution--worker-patterns)
-  - [Browser Cleanup](#browser-cleanup)
-  - [Networking \& Connectivity](#networking--connectivity)
-  - [Credential Management](#credential-management)
-  - [AI-Assisted Workflows](#ai-assisted-workflows)
-  - [Export \& Packaging](#export--packaging)
-- [Common Workflows](#common-workflows)
-  - [Browser profile cleanup](#browser-profile-cleanup)
-  - [Remote software inventory](#remote-software-inventory)
-  - [Purview purge flow](#purview-purge-flow)
-  - [Exchange Online message trace](#exchange-online-message-trace)
-  - [AAD Connect remote sync](#aad-connect-remote-sync)
-- [Developer \& Contributor Guide](#developer--contributor-guide)
-  - [Creating a New Command](#creating-a-new-command)
-  - [Module Architecture Rules](#module-architecture-rules)
-  - [Testing Conventions](#testing-conventions)
-- [Security Notes](#security-notes)
-- [Troubleshooting](#troubleshooting)
-- [Metadata](#metadata)
-
-## Quick Start
+## Quick start
 
 ```powershell
-# Import the module (PowerShell 7+ recommended)
-Install-Module TechToolbox -Force
-Import-Module TechToolbox -Force
-
-# Browse all exported commands
+Install-Module TechToolbox -Scope CurrentUser
+Import-Module TechToolbox
 Get-Command -Module TechToolbox | Sort-Object Name
-
-# Get the built-in help catalog
 Get-ToolboxHelp
-Get-ToolboxHelp -List          # Commands grouped by verb
-Get-ToolboxHelp Invoke-SubnetScan   # Help for one command
+Get-ToolboxHelp -List
+Get-Help Invoke-TechAgent -Detailed
 ```
 
-### One-Liner Demos
+For a repository checkout, import `./TechToolbox.psd1`. Preview changes with
+`-WhatIf` wherever supported:
 
 ```powershell
-Disable-User -Identity 'jdoe' -Credential (Get-Credential)
-Clear-BrowserProfileData -WhatIf
 Get-SystemSnapshot
-Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Custodian-01 -WhatIf
+Clear-BrowserProfileData -Browser Chrome -Profiles Default -WhatIf
 ```
 
-### Updatable Help Feed (Maintainers)
+## Architecture
 
-TechToolbox now includes a build script for `Update-Help` feed artifacts.
+`TechToolbox.psd1` declares module metadata and exports; `TechToolbox.psm1`
+sets module and local-data paths, loads private helpers and public scripts, and
+exports public functions. Runtime services are initialized when needed.
 
-Build local artifacts:
+- `Public/`: PowerShell commands; `Private/`: internal helpers.
+- `Workers/`: worker scripts; `Config/config.json`: packaged defaults.
+- `src/TechToolbox.Agent/`: TechAgent .NET source, a Git submodule.
+- `src/TechShell/`: separate Git submodule.
+- `AgentRuntime/`: packaged agent runtime assets.
 
-```powershell
-pwsh -NoProfile -File .\Config\Build-UpdatableHelp.ps1 -Clean
-```
-
-This emits:
-
-- `Out\UpdatableHelp\en-US\TechToolbox_<GUID>_HelpInfo.xml`
-- `Out\UpdatableHelp\en-US\TechToolbox_<GUID>_en-US_HelpContent.cab`
-
-Publish both files to the static site root used by `HelpInfoURI` in `TechToolbox.psd1` (`https://dan-damit.github.io/TechToolbox-Docs/`).
-
-Validation after publish:
-
-```powershell
-Update-Help -Module TechToolbox -Force -Verbose
-Get-Help about_Clear-BrowserProfileData
-```
-
-Optional command-help XML inclusion:
-
-- Generate or store `*-help.xml` in a folder.
-- Rebuild with `-ExternalHelpPath <path>` so those XML files are packed into the CAB with your `about_*.help.txt` files.
-- Detailed maintainer guide: `UPDATABLE-HELP.md`.
-
----
-
-## Architecture Overview
-
-TechToolbox follows a **loader-driven, one-function-per-file** pattern with deep internal helpers.
-
-### Module Layers
-
-```plaintext
-TechToolbox/
-├── TechToolbox.psd1          # Module manifest (metadata + declared exports)
-├── TechToolbox.psm1          # Bootstrap/loader (runtime path resolution, dot-sourcing, export wiring)
-├── Public/                   # Exported command scripts + export helper
-│   ├── ActiveDirectory/      # AD lifecycle and identity operations
-│   ├── AI/                   # AI assistant and agent bridge commands
-│   ├── Get/                  # Read/query commands
-│   ├── Invoke/               # Action/orchestration commands
-│   ├── Set/                  # Configuration/change commands
-│   ├── Start_Stop/           # Session/service start-stop commands
-│   ├── System/               # Local system and endpoint operations
-│   ├── Test/                 # Validation/diagnostic test commands
-│   └── Export-ToolboxFunctions.ps1  # Canonical export discovery helper
-├── Private/                  # Internal helpers (dot-sourced, not exported)
-│   ├── AADSync/              # AAD Connect internals
-│   ├── ActiveDirectory/      # AD internal helper functions
-│   ├── AI/                   # Agent/prompt helper internals
-│   ├── Browser/              # Browser cleanup internals
-│   ├── Exchange/             # Exchange helper internals
-│   ├── Input/                # Prompt/input utility internals
-│   ├── Loader/               # Module home/bootstrap initialization
-│   ├── Logging/              # Logging engine internals
-│   ├── M365/                 # Microsoft 365 helper internals
-│   ├── Network/              # Network helper internals
-│   ├── Purview/              # Purview/compliance helper internals
-│   ├── Security/             # Security helper internals
-│   └── System/               # Shared system helper internals
-├── Workers/                  # Remote / background task workers
-├── Config/                   # Runtime configuration (config.json, secrets)
-│   ├── config.json           # Base settings (git-tracked)
-│   └── config.secrets.json   # Tenant secrets (git-ignored)
-├── src/
-│   ├── TechToolbox.Agent/    # Private C# agent source (git submodule)
-│   │   ├── TechToolbox.Agent.csproj
-│   │   └── Tests/            # xUnit tests for agent runtime
-│   └── TechShell/
-│       ├── TechShell.csproj  # Private WinUI3/C#/Rust project for TechShell runtime
-│       └── Tests/            # xUnit tests for TechShell runtime
-├── AgentRuntime/             # Packaged C# TechToolbox agent runtime for PSGallery installs
-└── commands.md               # Full command catalog with examples
-```
-
-### How the Loader Works
-
-1. **Manifest loads first** -- `TechToolbox.psd1` points to `TechToolbox.psm1` and provides module metadata/declared exports.
-2. **Bootstrap establishes module state** -- `TechToolbox.psm1` sets module/home paths and resolves runtime roots without first-import home copy.
-3. **Private helpers are dot-sourced** -- all `.ps1` files under `Private/` are loaded recursively into module scope.
-4. **Public scripts are dot-sourced** -- all `.ps1` files under `Public/` are loaded (excluding `Export-ToolboxFunctions.ps1` in that pass).
-5. **Exports are discovered and published** -- at import time, `Export-ToolboxFunctions` discovers public function names, then `Export-ModuleMember` exports those functions.
-6. **Runtime init remains lazy** -- `Initialize-TechToolboxRuntime` initializes config/logging/interop/environment only when needed.
-
-### Path Tokens
-
-Portable path tokens replace absolute paths for roaming safety:
-
-| Token              | Resolves To                 | Use For                                       |
-| ------------------ | --------------------------- | --------------------------------------------- |
-| `%TT_ModuleRoot%`  | `C:\...\TechToolbox\`       | Module-owned files (Config, Workers, Private) |
-| `%TT_Home%`        | Module root by default (or override) | Operational data root (logs, exports, prompt templates, history) |
-| `%TT_LogsRoot%`    | Resolved logs root          | Log file output paths                         |
-| `%TT_ExportsRoot%` | Resolved exports root       | Exported reports / files                      |
-
-### TechAgent Architectural Principle
-
-TechAgent follows an orchestrator-first design philosophy: **the model proposes, the orchestrator decides**.
-
-LLM tool choices are treated as intent proposals, not direct execution commands. Before any tool runs, the orchestrator applies a standard control lifecycle:
-
-1. Eligibility and safety checks (execution mode, tool availability, destructive guardrails).
-2. Argument sufficiency and normalization (required args, coercion, prompt-derived hints).
-3. Uncertainty resolution (rewrite to discovery tools when arguments are incomplete).
-4. Evidence capture and loop control (result fingerprinting, repeated-call non-progress guards).
-5. Evidence-backed finalization (block placeholder final answers when concrete tool evidence exists).
-
-This pattern is intentionally policy-driven so new tools can inherit stable behavior through declarative decision hooks and guard rules instead of one-off logic.
-
-For any tool added or changed, keep regression coverage aligned to this philosophy:
-
-- Standard successful execution path.
-- Uncertainty rewrite and argument hydration path (when applicable).
-- Repeated-call non-progress guard behavior.
-- Final-answer evidence quality behavior.
-
----
+TechAgent composes configuration, tools, and policies before running its
+bounded orchestration loop. MCP discovery/execution, retrieval, memory, and
+PowerShell tools are distinct parts of the runtime. Retrieval and memory provide
+context, not authorization; model output alone does not authorize an action.
 
 ## Configuration
 
-All configuration flows through `Get-TechToolboxConfig`. The effective config is the deep merge of:
+Packaged defaults are under `<module root>\\Config\\config.json`. The loader
+uses per-user configuration and secrets at:
 
-- `Config/config.json` -- base settings (tracked in source control)
-- `Config/config.secrets.json` -- tenant-specific and sensitive overrides (git-ignored)
+- `%LOCALAPPDATA%\\TechToolbox\\Config\\config.json`
+- `%LOCALAPPDATA%\\TechToolbox\\Config\\config.secrets.json`
 
-Keep `config.json` limited to portable defaults, placeholders, and non-sensitive behavior settings. Put any environment-specific values there only if they are safe to share across every copy of the repo.
-
-Move anything that identifies your environment into `config.secrets.json`, including:
-
-- Domain controllers and search bases
-- Tenant identifiers and org-specific UPN suffixes
-- Internal hostnames, servers, and UNC paths
-- Credential-related values or other machine-specific overrides
-
-### Environment Variables
-
-| Variable                         | Purpose                            |
-| -------------------------------- | ---------------------------------- |
-| `TT_ConfigSecretsPath`           | Override the secrets file location |
-| `TT_DisableConfigSecretsMerge=1` | Skip merge for troubleshooting     |
-| `TT_AGENT_LLM_API_KEY`           | Optional runtime API key source for cloud providers |
-| `TT_AGENT_SEARCH_WEB_API_KEY`    | Optional runtime API key source for SEARCH-WEB provider API |
-
-For cloud providers, `Invoke-TechAgent` also supports secure DPAPI-backed key storage in `Config\config.secrets.json` (`settings.agent.apiKeyEncrypted`) via `Set-TechAgentApiKey`. SEARCH-WEB uses the same pattern through `settings.agent.searchWebApiKeyEncrypted` via `Set-TechAgentSearchWebApiKey`.
-
-### Configuring Secrets
-
-Use the ignored overlay for site-specific values. Start from `Config/config.secrets.example.json`, copy it to `Config/config.secrets.json`, then fill in your local values:
+User settings override packaged defaults; the secrets file is a separate
+sensitive overlay. Logs and exports are under `%LOCALAPPDATA%\\TechToolbox\\Logs`
+and `%LOCALAPPDATA%\\TechToolbox\\Exports`. Inspect settings with
+`Get-TechToolboxConfig`, taking care not to expose secrets. Edit per-user config,
+not packaged defaults. Partial example:
 
 ```json
 {
   "settings": {
-    "tenant": {
-      "organizationName": "yourdomain.onmicrosoft.com",
-      "upnSuffix": "yourdomain.local",
-      "tenantId": "0000-0000-0000-0000"
-    },
-    "ad": {
-      "domainController": "DC01.yourdomain.local",
-      "searchBase": "DC=yourdomain,DC=local"
-    }
+    "tenant": { "organizationName": "yourdomain.onmicrosoft.com", "upnSuffix": "yourdomain.com" },
+    "ad": { "domainController": "dc01.yourdomain.local", "searchBase": "DC=yourdomain,DC=local" }
   }
 }
 ```
 
-### Baseline Settings (config.json)
+Do not store plaintext credentials or API keys. `TT_DisableConfigSecretsMerge=1`
+temporarily disables secrets merging for troubleshooting. The old
+`TT_ConfigSecretsPath` override is not used by current configuration loading.
 
-```json
-{
-  "schemaVersion": 1,
-  "settings": {
-    "defaults": {
-      "promptForHostname": true,
-      "promptForCredentials": true,
-      "promptForDateRanges": true,
-      "showProgress": true,
-      "configPath": "%TT_ModuleRoot%\\Config\\config.json"
-    },
-    "logging": {
-      "enableConsole": true,
-      "enableFileLogging": true,
-      "minimumLevel": "Info",
-      "logPath": "%TT_LogsRoot%",
-      "logFileNameFormat": "TechToolbox_{yyyyMMdd}.log"
-    }
-  }
-}
-```
+## TechAgent
 
----
-
-## Invoke-TechAgent Prompt Example
-
-### Preferred prompt workflow
-- `Invoke-TechAgent` now defaults to `AI\Tasks\CurrentTask.txt` when no `-Prompt` or `-PromptFile` is supplied.
-- `Use-TechAgentTaskTemplate` can stage a reusable prompt template into that file before you run the agent.
-- `-Prompt` can still be used for inline prompt text, and `-PromptFile` can still target any other file when needed.
-- Provider routing supports `ollama` (default), `openai`, `openai-compatible`, and `azure-openai`.
-- Adaptive limit defaults now auto-select by provider: local-moderate for `ollama` and loopback `openai-compatible`, frontier-high for `openai`, `azure-openai`, and non-loopback `openai-compatible` endpoints.
-- Adaptive profile values are configurable in `settings.agent.adaptiveLimitProfiles` (`enabled`, `modelMatchers`, `localModerate`, `frontierHigh`, `frontierXL`) within `Config\config.json`.
-- Model matchers are evaluated first-match-wins and can route by wildcard or regex (`pattern`, `profile`, optional `useRegex`).
-- Each run now prints an adaptive preflight line with selected profile, matcher hit (if any), and resolved limit values.
-- Explicit environment variables always win over adaptive defaults: `TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS`, `TT_AGENT_MAX_TOOL_RESULT_CHARS`, `TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS`, `TT_AGENT_LLM_MAX_OUTPUT_TOKENS`.
-- Set `TT_AGENT_DISABLE_ADAPTIVE_LIMIT_OVERRIDES=true` to disable adaptive limit injection entirely.
-- Quality controls support `-Mode` (`execute`, `analyze`, `plan`, `chat`), with `chat` as the default, `-OutputContract` (`markdown`, `plain-text`, `json`), `-StrictPromptPreflight`, and `-QualityProfile`.
-- Reasoning controls support `-ReasoningEffort` (`low`, `medium`, `high`, `xhigh`) and `-ReasoningEffortAuto` for automatic selection.
-- Authentication controls support `-ToolCredential` and `-ToolCredentialVariableName` (default: `dac`) for non-interactive tool authentication.
-- For tool auth, prefer Invoke-TechAgent parameters over embedding `-Credential $dac` inside prompt text.
-
-### Retrieval backends (RAG)
-
-- Retrieval settings live under `settings.agent.retrieval` in `Config\config.json`.
-- `backend: "local"` uses local memory history snapshots.
-- `backend: "rg"` uses ripgrep to gather code-pattern context from the workspace root plus optional `directories` overrides.
-- `backend: "state-world"` uses workspace and environment signals with deterministic packing.
-- `backend: "hybrid"` fuses local memory and state-world evidence into one bounded retrieval context.
-- `hybridLocalMemoryWeight` and `hybridStateWorldWeight` tune source influence for `backend: "hybrid"` (defaults: `0.5` and `0.5`).
-- Semantic dense embeddings are selected only by an explicit `embeddingModel` plus positive `embeddingDimension`; optional `embeddingEndpoint` configures the independent Ollama transport and does not enable semantic mode by itself. Endpoint precedence is explicit `embeddingEndpoint`, then `LlmEndpoint` only for Ollama reasoning, then `http://localhost:11434`. Non-Ollama reasoning endpoints are never used for embeddings, and the reasoning model is never inferred as an embedding model. The resolved endpoint is transport metadata, not semantic fingerprint identity.
-- `Invoke-TechAgent -SemanticKnowledgeRetrieval Inherit|Enabled|Disabled` controls committed semantic retrieval per invocation. `-AutoIngestBeforeRun Inherit|Enabled|Disabled` independently controls ordinary pre-run ingestion. Both default to `Inherit`, using persisted `settings.agent.retrieval.knowledgeRetrievalEnabled` and `autoIngestBeforeRun` respectively. Overrides do not rewrite persistent retrieval settings or user configuration.
-- Keeping persistent `embeddingModel`, `embeddingDimension`, and `embeddingEndpoint` configured does not activate embeddings when no requested operation needs them. There is no need to remove or null those values when disabling semantic retrieval or changing reasoning provider/model. `Invoke-TechAgent -Endpoint` remains the reasoning endpoint; explicit `retrieval.embeddingEndpoint` wins for embeddings regardless of reasoning provider. Diagnostics identify endpoint source without exposing its raw value.
+If neither `-Prompt` nor `-PromptFile` is supplied, `Invoke-TechAgent` reads its
+configured default prompt, packaged as `%TT_LocalDataRoot%\\CurrentTask.txt`
+(`%LOCALAPPDATA%\\TechToolbox\\CurrentTask.txt`). Providers are `ollama`
+(default), `openai`, `openai-compatible`, and `azure-openai`.
 
 ```powershell
-# OpenAI reasoning with semantic retrieval disabled
-Invoke-TechAgent -Prompt "..." -Provider openai -Model gpt-6-luna -SemanticKnowledgeRetrieval Disabled -AutoIngestBeforeRun Disabled
-
-# OpenAI reasoning with local Ollama semantic retrieval
-Invoke-TechAgent -Prompt "..." -Provider openai -Model gpt-6-luna -SemanticKnowledgeRetrieval Enabled -AutoIngestBeforeRun Disabled
-
-# Qwen reasoning with independent Ollama semantic embeddings
-Invoke-TechAgent -Prompt "..." -Provider ollama -Model <qwen-model> -SemanticKnowledgeRetrieval Enabled -AutoIngestBeforeRun Disabled
-
-# Explicitly opt into pre-run ingestion
-Invoke-TechAgent -Prompt "..." -AutoIngestBeforeRun Enabled
-```
-- `rg` is fail-closed: invalid/unauthorized directories or missing ripgrep prevent retrieval startup.
-
-```json
-{
-  "settings": {
-    "agent": {
-      "retrieval": {
-        "enabled": true,
-        "backend": "rg",
-        "model": "techtoolbox/qwen2-5-7b-lora-tiny-r2:latest",
-        "maxContextTokens": 2048,
-        "maxResults": 5,
-        "timeoutSeconds": 10,
-        "directories": [
-          "src",
-          "Public"
-        ],
-        "includeGlobs": [
-          "*.ps1",
-          "*.psm1",
-          "*.cs"
-        ],
-        "excludeGlobs": [
-          ".git/**",
-          "bin/**",
-          "obj/**"
-        ],
-        "maxMatchesPerQuery": 500
-      }
-    }
-  }
-}
+Test-TechAgentProvider -NoNetwork
+Invoke-TechAgent -Prompt 'Summarize these logs' -Mode analyze
+Invoke-TechAgent -Prompt 'Plan migration steps' -Mode plan -OutputContract markdown
 ```
 
-- To pin the executable path explicitly, set `TT_AGENT_RIPGREP_PATH`.
-- Directory authorization still follows `TT_AGENT_ALLOWED_PATH_ROOTS`.
+Cloud API keys come from the configured environment variable (default
+`TT_AGENT_LLM_API_KEY`) or a DPAPI-encrypted secrets value. Use
+`Set-TechAgentApiKey` to securely store or manage a key, and
+`Test-TechAgentProvider` to validate provider setup. `-Endpoint` selects the
+reasoning endpoint, not the embedding endpoint. MCP credentials are separate;
+`Set-TechAgentMcpApiKey` manages per-server encrypted keys.
 
-### Reasoning effort (GPT-5.3-Codex)
+Modes: `execute` runs tools, `plan` plans without tool calls, and `analyze`
+provides analysis without tool calls. Legacy `chat` maps to `analyze`.
+`-OutputContract` accepts `markdown`, `plain-text`, or `json`;
+`-QualityProfile` accepts `precise`, `balanced`, or `creative`;
+`-ThinkingMode` accepts `auto`, `on`, or `off`. Prompt controls include
+`-StrictPromptPreflight`, `-AutoPromptHint`, and `-AutoRerunFromHint`.
 
-- `-ReasoningEffort` sets an explicit override and takes precedence over auto mode.
-- `-ReasoningEffortAuto` enables policy-based effort selection when no explicit override is provided.
-- Auto policy uses prompt preflight telemetry and thinking mode to choose the effective effort.
-  - Lower preflight scores and critical findings bias toward higher effort.
-  - Higher preflight scores bias toward lower effort.
-  - `ThinkingMode off` forces `low`; `ThinkingMode on` can raise low-effort auto outcomes.
-- Payload emission guardrails:
-  - `reasoning: { effort: "..." }` is emitted only when provider is `openai`, model is `gpt-5.3-codex`, and effort is non-empty.
-  - For unsupported provider/model combinations, the field is omitted and a diagnostic trace entry is written.
+TechAgent provides host-side destructive-action approval: the operator may
+approve the presented action, approve destructive actions for the run, or deny.
+Keep configured MCP `allowedTools` and `settings.agent.allowedPathRoots` narrow.
+The checked-in `settings.agent.policyStartupMode` is `Observe`; do not treat it
+as a substitute for action approval or infer further behavior from its name.
+Pass non-interactive credentials via `-ToolCredential` or
+`-ToolCredentialVariableName`, not in prompt text. See
+`Get-Help Invoke-TechAgent -Detailed` for all parameters.
 
-### Example: provider and quality controls
+### Memory and retrieval
+
+Checked-in retrieval defaults use the `hybrid` context backend, enable knowledge
+retrieval, and disable ordinary pre-run ingestion. Other context backends
+include local memory, ripgrep, and state-of-world. Retrieval uses configured
+sources and authorized paths; the `rg` backend requires ripgrep.
+
+`-SemanticKnowledgeRetrieval` and `-AutoIngestBeforeRun` independently accept
+`Inherit`, `Enabled`, or `Disabled`. `Inherit` uses persisted
+`settings.agent.retrieval` values; per-run choices do not change config.
+Enabling ingestion does not enable retrieval. Dense embedding work requires an
+explicit `embeddingModel` and positive `embeddingDimension`; its optional
+`embeddingEndpoint` is independent of reasoning provider/model. Configuring
+embedding values alone does not request embedding work.
 
 ```powershell
-# Cloud provider examples
-Invoke-TechAgent -Prompt "Summarize these logs" -Provider openai -Model gpt-4o-mini
-Invoke-TechAgent -Prompt "Plan migration steps" -Mode plan -Provider azure-openai -Endpoint https://your-resource.openai.azure.com -Deployment gpt-4o-mini
-Invoke-TechAgent -Prompt "Help me decide what to do next" -Mode chat
-
-# GPT-5.3-Codex reasoning effort examples
-Invoke-TechAgent -Prompt "Analyze this incident timeline" -Provider openai -Model gpt-5.3-codex -ReasoningEffort high
-Invoke-TechAgent -Prompt "Investigate this root cause" -Provider openai -Model gpt-5.3-codex -ReasoningEffortAuto -ThinkingMode on
-
-# Quality guardrails and output contract examples
-Invoke-TechAgent -Prompt "Investigate repeated login failures" -Mode analyze -OutputContract plain-text -StrictPromptPreflight
-Invoke-TechAgent -Prompt "Return remediation checklist as JSON" -OutputContract json -QualityProfile balanced
-
-# Quality telemetry summary for recent runs
+Invoke-TechAgent -Prompt 'Summarize logs' -Provider openai -Model gpt-4o-mini `
+    -SemanticKnowledgeRetrieval Disabled -AutoIngestBeforeRun Disabled
 Get-TechAgentQualitySummary -Window 20
-Get-TechAgentQualitySummary -Window 30 -IncludeRecent 10 -AsJson
-
-# Non-interactive credential context for tool calls
-$dac = Get-Credential
-Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute -ToolCredential $dac
-
-# Default variable lookup (ToolCredentialVariableName defaults to 'dac')
-$dac = Get-Credential
-Invoke-TechAgent -Prompt "Disable only AD user jdoe. Use Disable-User with WhatIf and return markdown results." -Mode execute
 ```
 
-### Example: stage a task, then run it
+### Task templates
+
+`Use-TechAgentTaskTemplate` manages reusable prompts. Its default destination
+is `AI\\Tasks\\CurrentTask.txt`, different from the configured default prompt
+path above. Set `-Destination` to align them or pass a staged file with
+`-PromptFile`.
 
 ```powershell
-Use-TechAgentTaskTemplate -Pick
+Use-TechAgentTaskTemplate -List -Category PowerShell
+Use-TechAgentTaskTemplate -Pick -Destination "$env:LOCALAPPDATA\\TechToolbox\\CurrentTask.txt"
 Invoke-TechAgent
 ```
 
-### Example: Creating an Online Help Markdown File
+## PowerShell commands
 
-The **TechAgent** uses a _structured JSON decision schema_ and will have an
-easier time writing files when the prompt clearly specifies the required
-WRITE-FILE action. A new tool has been created for the agent to use when
-modifying existing files. REPLACE-IN-FILE should be preferred for localized
-edits.
+Discover commands with `Get-Command -Module TechToolbox`; use
+`Get-Help <CommandName> -Detailed`. See [COMMANDS.md](COMMANDS.md) for the
+operator index. Public command areas include identity, Exchange/Purview,
+system diagnostics, endpoint operations, networking, browser cleanup, and
+remoting. Current AI commands include `Invoke-TechAgent`,
+`Use-TechAgentTaskTemplate`, `Test-TechAgentProvider`,
+`Test-TechAgentMcpConnection`, `Install-TechAgentRuntime`,
+`Set-TechAgentApiKey`, `Set-TechAgentMcpApiKey`,
+`Set-TechAgentSearchWebApiKey`, and `Get-TechAgentQualitySummary`.
 
-Use a prompt similar to the following for consistent results:
-
-```
-Read this file:
-C:\repos\TechToolbox\src\TechToolbox.Agent\Orchestrator\AgentOrchestrator.cs
-
-Task: 
-Add or improve XML documentation comments for every public type, public
-constructor, and public method in this file.
-
-Requirements:
-- Modify the existing file in place at this exact path:
-  C:\repos\TechToolbox\src\TechToolbox.Agent\Orchestrator\AgentOrchestrator.cs
-- Preserve all existing code and behavior.
-- Only add or improve XML documentation comments.
-- Prefer REPLACE-IN-FILE for localized edits to this existing file.
-- Use WRITE-FILE only if a localized replacement is not practical.
-- Do not stop after analysis.
-- Do not summarize your plan before editing.
-- Do not return a final answer until the file update has succeeded.
-```
-
-You can place that prompt directly into `AI\Tasks\CurrentTask.txt`, or use a template as a starting point:
-
-```powershell
-Use-TechAgentTaskTemplate -List -Category CSharp
-Use-TechAgentTaskTemplate -Template CSharp-XmlDocs-InPlace -Show
-Use-TechAgentTaskTemplate -Template CSharp-XmlDocs-InPlace
-Invoke-TechAgent
-```
-
----
-
-## Command Reference
-
-The full catalog is at [COMMANDS.md](https://github.com/dan-damit/TechToolbox/blob/main/COMMANDS.md). Below is a categorized summary organized by domain.
-
-### Active Directory & Identity Management
-
-| Function                     | Purpose                                         |
-| ---------------------------- | ----------------------------------------------- |
-| `Disable-User`               | Disables an AD user account (destructive)       |
-| `Reset-ADPassword`           | Resets an AD user password                      |
-| `New-OnPremUserFromTemplate` | Creates an on-prem user from a template         |
-| `Search-User`                | Searches for AD users by criteria               |
-| `Unlock-User`                | Unlocks a locked AD user account                |
-| `Get-AllUsers`               | Enumerates all AD users (with filters)          |
-| `Get-LocalAdminMembers`      | Lists members of the local Administrators group |
-| `Initialize-TTWordList`      | Initializes word list for Password generator    |
-
-### Exchange Online & Compliance
-
-| Function                          | Purpose                                                    |
-| --------------------------------- | ---------------------------------------------------------- |
-| `Get-MessageTrace`                | Traces an email message through Exchange / EOP             |
-| `Invoke-PurviewPurge`             | Purges content via Purview compliance portal (destructive) |
-| `Get-AuditSharedMailboxDeletions` | Audits deleted shared mailboxes                            |
-| `Get-SharedMailboxPermissions`    | Lists permissions on shared mailboxes                      |
-| `Get-AutodiscoverXmlInteractive`  | Interactive Autodiscover XML viewer                        |
-| `Set-EmailAlias`                  | Sets or adds an email alias for a mailbox user             |
-| `Set-ProxyAddress`                | Sets the proxy address (SMTP) for a mailbox user           |
-| `Test-MailHeaderAuth`             | Tests email header authentication results                  |
-
-### System Diagnostics & Health
-
-| Function                    | Purpose                                          |
-| --------------------------- | ------------------------------------------------ |
-| `Get-SystemSnapshot`        | Captures key system state information            |
-| `Get-ErrorEvents`           | Queries Windows Event Logs for errors            |
-| `Get-BatteryHealth`         | Reads battery health / cycle count from powercfg |
-| `Get-SystemUptime`          | Reports system uptime                            |
-| `Get-WindowsProductKey`     | Retrieves the installed Windows product key      |
-| `Get-PDQDiagLogs`           | Retrieves PDQ diagnostics logs                   |
-| `Get-SystemTrustDiagnostic` | Runs a system trust diagnostic                   |
-
-### Endpoint & Infrastructure Operations
-
-| Function                                    | Purpose                                           |
-| ------------------------------------------- | ------------------------------------------------- |
-| `Invoke-SystemRepair`                       | Runs Windows system repair / SFC DISM operations  |
-| `Reset-WindowsUpdateComponents`             | Resets the Windows Update stack                   |
-| `Enable-NetFx3`                             | Enables the .NET Framework 3.5 feature            |
-| `Set-PageFileSize`                          | Configures pagefile size (initial and maximum)    |
-| `Set-OneTimeReboot`                         | Schedules a one-time reboot at a given time       |
-| `Get-InstalledPrinters` / `Remove-Printers` | Manage installed printers (destructive on remove) |
-
-### Remote Execution & Worker Patterns
-
-| Function                                            | Purpose                                                 |
-| --------------------------------------------------- | ------------------------------------------------------- |
-| `Invoke-AADSyncRemote`                              | Runs an AAD Connect synchronization remotely            |
-| `Start-NewPSRemoteSession` / `Stop-PSRemoteSession` | Manage PSRemoting sessions (destructive stop)           |
-| `Get-RemoteInstalledSoftware`                       | Inventory software on remote computers                  |
-| `Copy-Directory`                                    | Copies directory contents (robocopy wrapper)            |
-
-### Browser Cleanup
-
-| Function                   | Purpose                                    |
-| -------------------------- | ------------------------------------------ |
-| `Clear-BrowserProfileData` | Deletes browser profile data (destructive) |
-| `Invoke-DownloadsCleanup`  | Cleans the Downloads folder (destructive)  |
-
-### Networking & Connectivity
-
-| Function               | Purpose                                    |
-| ---------------------- | ------------------------------------------ |
-| `Invoke-SubnetScan`    | Scans a subnet for active hosts / services |
-| `Start-DnsQueryLogger` | Starts DNS query logging for analysis      |
-| `Watch-ISPConnection`  | Monitors ISP connection health over time   |
-
-### Credential Management
-
-| Function                          | Purpose                                                        |
-| --------------------------------- | -------------------------------------------------------------- |
-| `Get-DomainAdminCredential`       | Retrieves domain admin credentials from secure store           |
-| `Get-CUCredentialManagerContents` | Lists entries in the Credential Manager                        |
-
-### AI-Assisted Workflows
-
-| Function                      | Purpose                                                                                      |
-| ----------------------------- | -------------------------------------------------------------------------------------------- |
-| `Invoke-TechAgent`            | Orchestrates the agent-driven workflow engine with provider routing, execution modes, output contracts, and prompt preflight controls |
-| `Use-TechAgentTaskTemplate`   | Stages reusable prompt templates to `AI\Tasks\CurrentTask.txt` for repeatable runs |
-| `Test-TechAgentProvider`      | Validates provider configuration and optionally probes live connectivity/auth |
-| `Set-TechAgentApiKey`         | Sets/rotates/clears DPAPI-encrypted API keys used by cloud providers |
-| `Set-TechAgentSearchWebApiKey` | Sets/rotates/clears DPAPI-encrypted SEARCH-WEB API keys used by the search tool |
-| `Get-TechAgentQualitySummary` | Summarizes recent run quality metrics from persisted memory history |
-
-### Export & Packaging
-
-| Function                  | Purpose                                                |
-| ------------------------- | ------------------------------------------------------ |
-| `Export-ToolboxFunctions` | Exports all module functions as metadata for the agent |
-| `Get-ToolboxHelp`         | Displays the built-in help catalog                     |
-| `Get-TechToolboxConfig`   | Retrieves or updates configuration                     |
-
----
-
-## Common Workflows
-
-### Browser profile cleanup
-
-```powershell
-Clear-BrowserProfileData -WhatIf                          # Dry run
-Clear-BrowserProfileData -Browser Chrome                  # Target one browser
-Clear-BrowserProfileData -Browser All -IncludeCache:$true  # Full clean
-```
-
-### Remote software inventory
+### Common workflows
 
 ```powershell
 Get-RemoteInstalledSoftware -ComputerName srv01,srv02 -Consolidated
-Get-RemoteInstalledSoftware -ComputerName laptop01 -IncludeAppx -Credential (Get-Credential)
+Invoke-AADSyncRemote -ComputerName aadconnect01 -PolicyType Delta
+Clear-BrowserProfileData -Browser Chrome -Profiles Default -WhatIf
 ```
 
-### Purview purge flow
+Purview requires a UPN and ticket; a content query may be prompted for based on
+config. Preview before execution:
 
 ```powershell
-# Always preview first
-Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Search-001 -WhatIf
-
-# Execute when confirmed
-Invoke-PurviewPurge -UserPrincipalName admin@company.com -CaseName Case-001 -SearchName Search-001
+Invoke-PurviewPurge -UserPrincipalName analyst@company.com `
+    -Ticket INC-151695 -WhatIf
 ```
 
-### Exchange Online message trace
+## Development and security
 
-```powershell
-Get-MessageTrace -MessageId '<abc123@company.com>'
-Get-MessageTrace -MessageId '<abc123@company.com>' -StartDate (Get-Date).AddHours(-12) -EndDate (Get-Date)
-```
-
-### AAD Connect remote sync
-
-```powershell
-Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Delta
-Invoke-AADSyncRemote -ComputerName 'aadconnect01' -PolicyType Initial -UseKerberos -WhatIf
-```
-
----
-
-## Developer & Contributor Guide
-
-### Creating a New Command
-
-1. Create a new `.ps1` file in `Public/<Category>/<FunctionName>.ps1`.
-2. Use the standard template (see below).
-3. Add the function name to `FunctionsToExport` in `TechToolbox.psd1`.
-4. Run `Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning` to validate.
-5. Test with `-WhatIf` and real data.
-
-```powershell
-<#
-.SYNOPSIS
-    Short description.
-
-.DESCRIPTION
-    Longer description explaining what the function does and when to use it.
-
-.EXAMPLE
-    New-MyCommand -Name 'test'
-      Does something useful.
-
-.PARAMETER Name
-    Description of the Name parameter.
-
-.INPUTS
-    None. You cannot pipe objects to this cmdlet.
-
-.OUTPUTS
-    System.String (or whatever is returned).
-
-.NOTES
-    Requires: Admin rights, network access, etc.
-#>
-[CmdletBinding(SupportsShouldProcess)]
-param(
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
-    [string]$Name
-)
-
-begin {}
-process { Write-Host "$Name" }
-end {}
-```
-
-### Module Architecture Rules
-
-- **One function per file** -- every `.ps1` in `Public/` maps to one exported command.
-- **Private helpers stay private** -- nothing in `Private/` is exported; use them only from other module functions.
-- **No side effects on import** -- the `.psm1` bootstrap should not run user-facing code; lazy-init everything.
-- **All paths use tokens** -- never hardcode absolute paths; resolve via `%TT_ModuleRoot%` or `%TT_Home%`.
-- **Module-root first import** -- by default, first import does not stage/copy module content to a separate home path. Set `TT_Home` only when you intentionally want runtime data outside module root.
-- **WhatIf support** -- every destructive function must respect `$PSCmdlet.ShouldProcess()`.
-
-### Testing Conventions
-
-```powershell
-# Always run WhatIf before real execution
-Clear-BrowserProfileData -WhatIf
-Invoke-PurviewPurge -UserPrincipalName you@company.com -CaseName Case-001 -SearchName Search-001 -WhatIf
-Get-RemoteInstalledSoftware -ComputerName srv01 -WhatIf
-
-# ScriptAnalyzer on every PR
-Invoke-ScriptAnalyzer -Path .\TechToolbox -Recurse -Severity Error,Warning
-```
-
----
-
-## Security Notes
-
-- **Destructive actions** -- functions marked destructive include `Disable-User`, `Clear-BrowserProfileData`, `Invoke-PurviewPurge`, `Remove-EpicorEdgeAgent`, `Remove-Printers`, `Stop-PSRemoteSession`, and others. Always use `-WhatIf` first.
-- **Credentials** -- sensitive credentials are stored in secure config files (git-ignored) or the Credential Manager. Never commit secrets.
-- **CredSSP / Kerberos** -- remote execution may require CredSSP delegation or Kerberos auth; configure `remoting.credSSPDelegateComputers` accordingly.
-
----
-
-## Troubleshooting
-
-| Issue                       | Resolution                                                                                                                 |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Module import fails         | Use PowerShell 7+ and `Import-Module .\TechToolbox.psd1 -Force`                                                            |
-| Command not found           | Check that it is listed in `FunctionsToExport` in the manifest                                                             |
-| Config errors               | Verify both `config.json` and `config.secrets.json` are valid JSON; use `TT_DisableConfigSecretsMerge=1` to isolate issues |
-| OpenAI/Azure OpenAI auth fails | Run `Test-TechAgentProvider -Provider <name>` and set a key via `Set-TechAgentApiKey` or `TT_AGENT_LLM_API_KEY` |
-| TechAgent weather output shows duplicate markdown headings | Update to a build that includes the 2026-09-09 weather-output reliability fix and restart the session so `Invoke-TechAgent` uses the latest wrapper/runtime binaries |
-| Path token resolution fails | Run `Test-TTPathRoots -EnsureDirectories` to validate paths                                                                |
-| Remoting failures           | Verify WinRM is running, auth method matches server config, and credentials have appropriate privileges                    |
-| Purview / EXO errors        | Confirm required roles (Compliance Administrator, etc.) and Exchange Online module installed                               |
-| Battery report fails        | Run elevated if `powercfg` is blocked by group policy                                                                      |
-| Logging silent              | Ensure log directories exist; check `logging.enableFileLogging` setting                                                    |
-
----
+`src/TechToolbox.Agent` and `src/TechShell` are Git submodules. Use repository
+build/test tooling; see [UPDATABLE-HELP.md](UPDATABLE-HELP.md) for help-feed
+maintenance. Use `-WhatIf` where supported, review approval prompts, never
+commit secrets, and restrict MCP tools and agent filesystem roots. Check paths
+with `Test-TTPathRoots`; check command help and `COMMANDS.md` for current
+parameters.
 
 ## Metadata
 
-- **Author:** Dan Damit
-- **License:** MIT License
-- **Module version:** 3.3.1
-- **Current milestone:** v3.3.1 - "Destructive Confirmation Propagation Fix"
-- **Milestone date:** 2026-11-01
-- **PowerShell requirement:** 7+ (Core)
-- **Repository:** [GitHub](https://github.com/dan-damit/TechToolbox)
+- Author: Dan Damit
+- License: MIT
+- Module version: 3.4.0
+- PowerShell requirement: 7.4.0 or later (Core)
+- Repository: [GitHub](https://github.com/dan-damit/TechToolbox)
