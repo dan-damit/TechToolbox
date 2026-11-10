@@ -390,6 +390,7 @@ Describe 'Invoke-TechAgent synthetic snapshot reconciliation fixture' {
             $freshArtifact.Outcomes[0].Status | Should -BeExactly 'planned'
             $freshArtifact.Outcomes[0].PredecessorManifestRevision | Should -Be $revision
             $freshProvider.Specification.Fingerprint | Should -BeExactly $freshArtifact.RequestedEmbeddingSpecificationFingerprint
+            $verifiedScenarioAWorkerEmbeddingFingerprint = $freshProvider.Specification.Fingerprint
             $plan.PublicationOccurred | Should -BeFalse
             Assert-TTE2EInventoryUnchanged -Before $liveBefore -After (Get-TTE2EInventory -Root $liveRoot)
 
@@ -405,11 +406,12 @@ Describe 'Invoke-TechAgent synthetic snapshot reconciliation fixture' {
             $script:scenarioAWorkerRetrievalJson = [IO.File]::ReadAllText($retrievalConfigPath)
             $script:scenarioAWorkerPredecessor = $predecessor
             $script:scenarioAWorkerPredecessorManifest = $manifest
+            $script:scenarioAWorkerPredecessorEmbeddingSpecification = $legacy.Specification
             $script:scenarioAWorkerApprovedSnapshot = $approvedSnapshot
             $script:scenarioAWorkerManifestRevision = $revision
             $script:scenarioAWorkerDenseGenerationId = $denseId
             $script:scenarioAWorkerLexicalGenerationId = $lexicalId
-            $script:scenarioAWorkerEmbeddingFingerprint = $provider.Specification.Fingerprint
+            $script:scenarioAWorkerEmbeddingFingerprint = $verifiedScenarioAWorkerEmbeddingFingerprint
             $script:scenarioAWorkerInitialEndpointRequests = $endpoint.RequestCount
             $script:scenarioAWorkerInitialTags = $endpoint.TagCount
             $script:scenarioAWorkerInitialEmbeds = $endpoint.EmbedCount
@@ -871,7 +873,7 @@ try {
                 throw "Detached worker terminal failure: state=$($status.State); code=$($status.FailureCode); type=$($status.FailureType); diagnostic=$($status.ProcessDiagnostic); terminal=$($status.TerminalOutcome); failureSummaries=$($failureSummaries -join ','); diagnostics=$diagnosticPath"
             }
             $status.State | Should -BeExactly 'succeeded'
-            $status.Operation | Should -BeExactly 'SemanticSnapshotReconciliation'
+            $status.Operation | Should -BeExactly 'semanticSnapshotReconciliation'
             $status.JobId | Should -BeExactly $jobId
             $status.PlanRunId | Should -BeExactly $script:scenarioAPlanRunId
             $status.ArtifactSha256 | Should -BeExactly $script:scenarioAArtifactSha256
@@ -913,10 +915,16 @@ try {
             $current.SnapshotIdentity.ContentHash | Should -BeExactly $script:scenarioAWorkerApprovedSnapshot.Identity.ContentHash
             $current.DenseBuild.GenerationId | Should -Not -BeExactly $script:scenarioAWorkerDenseGenerationId
             $current.LexicalBuild.GenerationId | Should -Not -BeExactly $script:scenarioAWorkerLexicalGenerationId
-            $current.DenseBuild.SpecificationFingerprint | Should -BeExactly $script:scenarioAWorkerEmbeddingFingerprint
+            $expectedDenseBuildFingerprint = [TechToolbox.Agent.Retrieval.DenseEmbeddingCompatibility]::CurrentBuildFingerprint(
+                $script:scenarioAWorkerArtifact.RequestedEmbeddingSpecification,
+                [TechToolbox.Agent.Retrieval.SourceIndexManifestProtocol]::CurrentVersion,
+                [TechToolbox.Agent.Retrieval.SourceIndexModalityBuild]::CurrentSchemaVersion)
+            $current.DenseBuild.SpecificationFingerprint | Should -BeExactly $expectedDenseBuildFingerprint
             $targetDenseBuild = [TechToolbox.Agent.Retrieval.DenseSourceIndexBuildSpecification]::new($current.DenseBuild,
                 $script:scenarioAWorkerArtifact.RequestedEmbeddingSpecification.ModelId,
                 $script:scenarioAWorkerArtifact.RequestedEmbeddingSpecification.VectorDimension)
+            $targetDenseBuild.EmbeddingSpecification = $script:scenarioAWorkerArtifact.RequestedEmbeddingSpecification
+            $targetDenseBuild.AttemptId = $script:scenarioAWorkerArtifact.Outcomes[0].ApprovedPlan.AttemptId
             $targetLexicalBuild = [TechToolbox.Agent.Retrieval.LexicalSourceIndexBuildSpecification]::new($current.LexicalBuild,
                 [TechToolbox.Agent.Retrieval.VersionedLexicalAnalyzer]::CurrentVersion)
             $denseWriter = $lifecycle.CreateDenseWriter()
@@ -930,8 +938,10 @@ try {
 
             $predecessorDenseBuild = [TechToolbox.Agent.Retrieval.DenseSourceIndexBuildSpecification]::new(
                 $script:scenarioAWorkerPredecessorManifest.DenseBuild,
-                $script:scenarioAWorkerPredecessorManifest.DenseBuild.SpecificationFingerprint,
-                $script:scenarioAWorkerPredecessorManifest.DenseBuild.VectorDimension)
+                $script:scenarioAWorkerPredecessorEmbeddingSpecification.ModelId,
+                $script:scenarioAWorkerPredecessorEmbeddingSpecification.VectorDimension)
+            $predecessorDenseBuild.EmbeddingSpecification = $script:scenarioAWorkerPredecessorEmbeddingSpecification
+            $predecessorDenseBuild.AttemptId = $script:scenarioAWorkerPredecessorManifest.PublishingAttemptId
             $predecessorLexicalBuild = [TechToolbox.Agent.Retrieval.LexicalSourceIndexBuildSpecification]::new(
                 $script:scenarioAWorkerPredecessorManifest.LexicalBuild,
                 [TechToolbox.Agent.Retrieval.VersionedLexicalAnalyzer]::CurrentVersion)
@@ -941,20 +951,25 @@ try {
                 $script:scenarioAWorkerLexicalGenerationId, $predecessorLexicalBuild).GetAwaiter().GetResult()
             $oldDenseVerify.IsValid | Should -BeTrue
             $oldLexicalVerify.IsValid | Should -BeTrue
-            (Test-Path -LiteralPath (Join-Path $lifecycle.DenseRoot $script:scenarioAWorkerDenseGenerationId) -PathType Container) | Should -BeTrue
-            (Test-Path -LiteralPath (Join-Path $lifecycle.LexicalRoot $script:scenarioAWorkerLexicalGenerationId) -PathType Container) | Should -BeTrue
+            $predecessorSourceKey = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($script:scenarioAWorkerPredecessor.Source.SourceId)))
+            $predecessorDenseGenerationKey = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($script:scenarioAWorkerDenseGenerationId)))
+            $predecessorLexicalGenerationKey = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($script:scenarioAWorkerLexicalGenerationId)))
+            $currentDenseGenerationKey = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($current.DenseBuild.GenerationId)))
+            $currentLexicalGenerationKey = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($current.LexicalBuild.GenerationId)))
+            $predecessorDensePath = [IO.Path]::Combine($lifecycle.DenseRoot, $predecessorSourceKey, $predecessorDenseGenerationKey)
+            $currentDensePath = [IO.Path]::Combine($lifecycle.DenseRoot, $predecessorSourceKey, $currentDenseGenerationKey)
+            $predecessorLexicalPath = [IO.Path]::Combine($lifecycle.LexicalRoot, $predecessorSourceKey, $predecessorLexicalGenerationKey)
+            $currentLexicalPath = [IO.Path]::Combine($lifecycle.LexicalRoot, $predecessorSourceKey, $currentLexicalGenerationKey)
+            (Test-Path -LiteralPath $predecessorDensePath -PathType Container) | Should -BeTrue
+            (Test-Path -LiteralPath $currentDensePath -PathType Container) | Should -BeTrue
+            (Test-Path -LiteralPath $predecessorLexicalPath -PathType Container) | Should -BeTrue
+            (Test-Path -LiteralPath $currentLexicalPath -PathType Container) | Should -BeTrue
             $current.Revision | Should -Not -Be $script:scenarioAWorkerManifestRevision
 
             $attemptId = $script:scenarioAWorkerArtifact.Outcomes[0].ApprovedPlan.AttemptId
             $attempt = $manifests.TryReadAttemptAsync($script:scenarioAWorkerPredecessor.Source.SourceId, $attemptId).GetAwaiter().GetResult()
             $attempt.Phase.ToString() | Should -BeExactly 'Completed'
             $attempt.SnapshotIdentity.ContentHash | Should -BeExactly $script:scenarioAWorkerApprovedSnapshot.Identity.ContentHash
-            $denseNames = @((Get-ChildItem -LiteralPath $lifecycle.DenseRoot -Directory -ErrorAction Stop).Name)
-            $lexicalNames = @((Get-ChildItem -LiteralPath $lifecycle.LexicalRoot -Directory -ErrorAction Stop).Name)
-            $denseNames | Should -Contain $script:scenarioAWorkerDenseGenerationId
-            $denseNames | Should -Contain $current.DenseBuild.GenerationId
-            $lexicalNames | Should -Contain $script:scenarioAWorkerLexicalGenerationId
-            $lexicalNames | Should -Contain $current.LexicalBuild.GenerationId
             $script:scenarioAWorkerEndpoint.Url | Should -Match '^http://127\.0\.0\.1:[0-9]+$'
             $script:scenarioAWorkerEndpoint.Url | Should -Not -Match '11434'
 
@@ -1035,12 +1050,11 @@ try {
     }
 }
 
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA6hZtj0h8z4pvk
-# Kp/7xudoS+ePMHUUCPbVC5ZwcLv87aCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+A9ccnhtaViV9
+# dVuyqKnbwN3wTf9QH2NgdMcnymKOEKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -1217,31 +1231,31 @@ try {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAD
-# qgPfDqMEKARvKcxQrhf/tV+YvpxYkPTD0TJtL5+9WDANBgkqhkiG9w0BAQEFAASC
-# AYCuj6TeenXFISLlO1PwuOC8pG/EI1Hy8DNvdpK12S8aV+kNzdm3PQ2cJ3J8WO28
-# NJcbFnQ83rSKRxf9lQh5xrRiv4BWQcKNT7ybbDmlJPupQ3rSKKA86QDTDDKYgbbz
-# t/oJU8URU9r+t4PQkjsdVe6JDyrp+GjpxJF4lbaN1UaZXar21X+WZGdFlxbwhXfM
-# TdZfKlHEppCj6yZTYu0kMieoFNEruOh62IAqEDvHDbqGLitT3VXJtFFhMxMKmZxo
-# nHCiP8VU7jkmmokNDDkRqRBwZX+EYPO3jzuJs57URLvVZlLqVEk0MR3SaoKSEnQv
-# YSrc0p44aKG1+/lBycKYCdmNTF43eKwMKWS01YTobxiIXP9Qbu0Tk7OQodEEB0Yj
-# 9mZT5tpf4zx8SzExAlWSgYGW4v5FTVnHSB5f9IvTLXLW5DKl8W0FxWdzDKZtMOnN
-# HtP/Mq8pIJVFFnR1US9xyDgzn+RUFBO+tyOP07g7BunQ15/EF94Ng8yT0zxvyaQv
-# t92hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBv
+# yZJpa5pVUZMtq0f8cX+/jtm+M6ekXWQwFTH03ucsQDANBgkqhkiG9w0BAQEFAASC
+# AYBA7P7O9qJBo4HUCyKSaGLV36G4kFEPf0OFxlZ0PaLa8uv7kMBqEqKYxnN1AwVr
+# TN/bkvTjy0CnMx6uiaMZlwD7v6e+kki5L/oEG68bnd1aYEffD3z1d78NbIWKamLX
+# 2y7JeDKCf7Hkxmp8eSdz4f4hfs5uCam3I6gs2Ip4iha1CbdGyRpMWUjuhxah8Xoa
+# dJVA3uqS6Dq7PiJOVPjMWKbU8ZxTvAdZ0fbqZRbRzuqaSjwLXE4UL5Zn+VVe3mZy
+# hA/AUkXo8MrJBo6bdUSs6B9J4i5wybGr6M9H9s/7MT7/gQbNgVUDZ14uf6ryKB0U
+# A35UuUaxxHB9sPCH9mk9qlYlV+n3Xw/k6VTBRcQptxkTMVKUx8+62Oux6RAoVyfh
+# zpdr+1VdYEA4b+kGV/nqfnrk1xw5BoUAVLb05SzeMmJmSF87plE2T0VaA3lSGmnz
+# i6IgDrJVaQTH5REHRkbzOF00Sm7HtrirE8ot0Jrd+pAPGHQ0cY31uMVPXk5IfFkt
+# dyChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDYyMTU4WjAvBgkqhkiG
-# 9w0BCQQxIgQgZ5e99M2meW/p/9wFEzrZlp/rRNZnpIXXZq+BqOltgQQwDQYJKoZI
-# hvcNAQEBBQAEggIAnsudANdUarYnJUuL6gJSQ/M7djVK6h8CR/RTA5TNX4/oZfsX
-# dwCzMdM8jLDNqms3Aj8qf7UoI9EDEhTyNPr8NSX24wHcRRA/0AuMbQTWBap8M6x7
-# v3EERYBDVigsFWWHMyEKCnVOv+MTzfpkPthpc+zXgjB+bHofkcKVSsHUBruCl1Nx
-# DhAZTZIpftX4ik75KX2zng+hn6tGPpyanvpMlBo8NRKKeMadjGWlXLzuZJ5KC5gc
-# etJljh5BSgr5uhGdNdd29kGpI21bcviaVXdmpEWVKKqGIxv4tFb1gbAvhcQehALl
-# y+8PomcnVmKZ3j9z079pz7BY6m4WbMiPj0YHSksD5ia4P6lpMS62mLiZAyLuZNIn
-# ivpY0tz9olnaswvn/pMGhyh4FD/jjDAsPH5cLZXGXSWEKF/1Qi82/xfFGemfsqgf
-# DiYFn54av+okYGht+zbu5eqBrRUtQFTZ/mj5frW8rYqfAk8hRreEx9rvBJeumTjf
-# /E6otDXKj7gqkqJDtStbWyEROP1ENczNFg+r5Vq/ITsqD+7QAl0exz/rsxpiAPQJ
-# NEbmab5PwuRCdW0Omm6qQX9g4MtuekBnMKocdCoC5mEJ+ILlw/wk5k83A/Ffwv87
-# 3z8ZVANaArLaJvPFFuv2+6ijSoe23jt+wtV+PDdRiURBGr/BlU4P6ee5WNA=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTEwMDMxMjA1WjAvBgkqhkiG
+# 9w0BCQQxIgQgKYhJsb7VlIGyLVfgmusiek4Ih87eW1x+fhcylr/epJgwDQYJKoZI
+# hvcNAQEBBQAEggIAhpDLeYO4KY0EwjDgMklb/omPUbNyonvKim1s37yp54l4pWPZ
+# HW4Mzs9RtJngknBJSFm/ELpyFY/Meyt2MTLljDBDpKhI1cwUiOl5L7EsA0tynDka
+# //6wKsuuJgb41Tz3AievI0zT7MJ7+gNwYfYnACteBz9EjDRzjsVe/uzzk2/BbaL3
+# o0gOjQ9W/NpsDWKNxksafygKM9rzRtGdFAWOeOTUpf00pY4q07CT6OkzfgubplvD
+# bDEFZ1qp0dqsB5XoSoZ03VG0TLWgW7ZAxnUfP6qRpHYPkhUNGEC9DJJPv5Wfj1Vx
+# OLq6MqKFs1al7vQxY9O/b4neoCzlYInAg2rYfNzE0uDIBp11eyUkKk7jrouDEAc7
+# jLPCgiUydsoldbgIIw+uu91WXsrzNYpWzByvy+HOQsM6bGAy4AnlAhBjzU9gx9O7
+# RUch8Mn8bU6sasE+r+vEDKESh1b58VyXAkq2NxMLUybuOOi1my4BLwdxwqBrEIoG
+# c+u4pVG/uU1OUO2xxgLqHXDAnvdvC2oz9NgcaXCunb2Qp1NAFTsHNSn7EPa/W6Me
+# osYlTe8Zx1df1jR7MZUithY8CcK/ZeRpRrMKGM64+gkL3F0H/Sgp2kKCJSXAkg74
+# SMGxQcbJ4KunlZYAbZgdrIWtk5KmbX1DVfhl0Z5GdnBzRoGJZOWWjtYg4KA=
 # SIG # End signature block

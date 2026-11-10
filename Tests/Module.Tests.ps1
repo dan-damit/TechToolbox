@@ -111,6 +111,49 @@ Describe "TechToolbox Module" {
             }
         }
 
+        It "Should preserve collection shape and scalar values through recursive config merging" {
+            InModuleScope TechToolbox {
+                $userConfigPath = Join-Path ([System.IO.Path]::GetTempPath()) ("config.user.collection-merge.{0}.json" -f [System.Guid]::NewGuid().ToString('N'))
+                try {
+                    @{
+                        schemaVersion = 1
+                        settings      = @{
+                            agent          = @{
+                                retrieval = @{
+                                    directories           = @('singleton-directory')
+                                    allowedFileExtensions = @('.one', '.two')
+                                    backend               = 'scalar-override'
+                                }
+                            }
+                            browserCleanup = @{
+                                defaultProfiles = @('singleton-profile')
+                            }
+                        }
+                    } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $userConfigPath -Encoding UTF8
+
+                    $config = Get-TechToolboxConfig -Path $script:TT.ConfigDefaultsPath -UserConfigPath $userConfigPath
+                    $directories = $config.settings.agent.retrieval.directories
+                    $extensions = $config.settings.agent.retrieval.allowedFileExtensions
+                    $profiles = $config.settings.browserCleanup.defaultProfiles
+
+                    ($directories -is [System.Array]) | Should -BeTrue
+                    $directories.Count | Should -Be 1
+                    $directories[0] | Should -Be 'singleton-directory'
+                    ($extensions -is [System.Array]) | Should -BeTrue
+                    $extensions.Count | Should -Be 2
+                    $extensions | Should -Be @('.one', '.two')
+                    ($config.settings.agent.retrieval.backend -is [string]) | Should -BeTrue
+                    $config.settings.agent.retrieval.backend | Should -Be 'scalar-override'
+                    ($profiles -is [System.Array]) | Should -BeTrue
+                    $profiles.Count | Should -Be 1
+                    $profiles[0] | Should -Be 'singleton-profile'
+                }
+                finally {
+                    Remove-Item -LiteralPath $userConfigPath -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
+
         It "Should save first-run effective config only to LocalDataRoot config path" {
             InModuleScope TechToolbox {
                 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("tt-config-save.{0}" -f [System.Guid]::NewGuid().ToString('N'))
@@ -263,11 +306,14 @@ Describe "TechToolbox Module" {
         }
     }
 }
+
+
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBH/bbf2U9XxCYF
-# ixDxDEzljOS+jP7L3GZIevvbZOSTR6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCXfhplrF6ym3LC
+# aB0vRO+cBcsOdA/csEW6G4n0BI3ahaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -444,31 +490,31 @@ Describe "TechToolbox Module" {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC/
-# 8nvUdxDRKFcS3dxFAajT0HQqFNH68GmZ+MZwc/qrYDANBgkqhkiG9w0BAQEFAASC
-# AYC65x+yjZIiEVBcCppD6bDnctrOfA8qoDuHNVGQTi2K5RnP4dUyVqPJCdnIXqv4
-# BIDCNB4NesUzzpfeSFRNLVRilFVcho5mQAgRRkZMkPesvOIKQ5DNdQFHQX55v8ew
-# 8nLq3njfFPxFLjfIuwNR4klGmVtz69ONZSnwrQ0GRaeo1MV0hXBGXs/VMw0z4yEC
-# UJeuqMPGYG4dTfXBGVYupeblj2e8LjXpPQ7Fqb3Kf/KEOHsPgvxIHama8XTreVMR
-# CPN6ZrQAxsWncZcedrQigjae83jzopzW6GxpR+P53H8GKFaaE+TKPP+0OLbQujVO
-# rOHeRzBmPDdfCkPlIPQEYDKeBE2UPRYlq1xFkHwcOeMkObh+mtptFcvie4OLLLFB
-# 2iyajsrusGtvWdJuk1eb1/pyeRTuwChnwXvklNcuFAusJ8namDLSy7cMiOOKkj/D
-# QISXWW2oqSLEMcir1jeovlLIw8CoO/1woOR+yh8A1+Myotc+Z21dPJCDouHOiW8K
-# kBOhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDq
+# c9m5Ktchy4miZ1tfYn6N6YsnMOM5aCtqcbSU8SKyrzANBgkqhkiG9w0BAQEFAASC
+# AYAPHjG4c+TKipRcLfZoT5CxThMnL03zf+N8DOvKwMZt1k6Yg02F/P7+iZdraeQo
+# +0sHvgdF3qfRmfqXfLPNhSYqtQJpobCHKwcSFy+NXaCd8jkzi1op1OHWyG/jpQQ1
+# 7FqU7s5zloe4Ka4jrtbzhxYkneKXkeVYEpYt0HrCZ4YYOfnO7goYkJ1/O2YzwMtl
+# xGqNjQ488D60iEHcaMe1GHDNj4GLoRxaVfkIUU021Eod/Bf2N9649ULIszka/Fou
+# oZkLHU934uT5XChym1ppeCPnNlqLGYVINYa7+jiBR4eU2JtamKS2JLq/94El+vsS
+# jPq33hWo+i5WHSrJ6eu9dkl4jR/hgRqvw1oRMgJSu59ymqSQq9FJBuMFIVH3ALYa
+# F208O/lzNsuaIRZZsab3WrJ6/J0sGKkpCMPqs2aFZJb57MPP7J0b1o/yT1z+y6SG
+# Sc+5ANcFlx+MKveMeoOcyHE/GuOMRv92sCk+85MIxMcQUWU5e7mWOKbHy9OoJzsk
+# wE2hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI5MTY1NzUwWjAvBgkqhkiG
-# 9w0BCQQxIgQgDG1fWRiE3pHwAmxbqoTZs0lTfsi15I4CxirFfFiITWwwDQYJKoZI
-# hvcNAQEBBQAEggIAAllmStQoPj8dMb7Z0aAM7kurW9EmrUnTYFhcoA241LoDgbf2
-# fV+qWbDLTz8C8uw8+DxD8rPN6JIfm9WmQbGCorLrPY/BLxDXhgeo4tauc9AIFzsk
-# VQh2sCTXqaIXZurCSdm2GfNHv8/RvDLU2anlZWyt2tY+J37KdfxAYyySRX18zQb/
-# gFkFjZ69SQeElvJMNrlnr5ZF/qdVGUk/LxkiZQ+Vz1pyhZiVakmXMG0jgk2D8AWm
-# 2AtLRtjPZTuf9XW+cjKx0UFHK/p9ZxyH3HP1FQO5aKSNvPcDfmGR53UqNMvVtCmU
-# Bla0h5pe+kFZR5TpLnwCuK95WR7J1liG5TuYlo8uOD2gndbP6PezaRzO5MJSzz8p
-# +/Q4RU5VP5KP/itakoZzfW1PIiyiS8+owA/WiVOY3yp/vMDFwBqOXAWT/rq9iGvQ
-# p2Jmk8wlr0zW1aXSKkbrOY3sIqKtguviMNagpglNpV0+od5F7+TbH6iCvJiPu8by
-# NMnf6I5sfvkQBQMFy0HpdhuaKozf3XZDLdPBp5njxDJxRA6QL+v2uBe2G77w8xbn
-# JyhGno8qLbiexen7z+UYQfUoSJomRCFdnuSn0+m/jeL/QdO0UCEI4qaEE0MK1uLj
-# ZJawwdb8pjdGRfIlEf7R77mFYZPdddYUKx02pjMAeON2C7ZgnctnmtFrBmg=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTEwMDMxMjA3WjAvBgkqhkiG
+# 9w0BCQQxIgQgKxTiKhQni42M/mgW8SSuBJCLrPSLy0WbQpthX3GQskswDQYJKoZI
+# hvcNAQEBBQAEggIAEAhcVVzAsT2uym49nBIxLQKPY6ah+PfN2O/1oTQvjdE4BN9K
+# ajyrs9dmt0AbC4VNzZKxNQiKqjzHoKpjtlpr9MQgI05q37qFgJhorUygWv/UkaEv
+# 011+CjwfcPXOP3JuaHdTbjxmlODianb1dnNSzzXepG9wTgIqR7u5q5qFFeeUtcC9
+# UraSvgbnoNvV3dmXTtjjSGC/z1DmtoOepUauO5bkwpO1bQ7XU2jT1UN/I272HkjL
+# dhfCsAv7QIO8gK00NP+Tq55k/cotm2FkChVwOuaQDV1VnM3ZqsYdIUTBWilQVOLx
+# wHbOcNyzisiSsoxEY6iCu9pfjtQzb4704nArKKqRThk3IPHS06Grq26moRXdvWYf
+# RQE7VHslwajNvPyIRJTEo0lXg+9A76bOVGY3n3oZFteWR2PKI3fKwBQRvGS18ZkI
+# dPlQdsOYlTtnnFGt8Cr0kPS14s1Wu5s2Iz78Tfa46MUumx9MfeqwlLxI8nf939TO
+# DzJF8LdcATNs+8NRa57bK8rCy59C5YR6MSs+5BgmegiEcHxrbv/vTw6oceNX4BH4
+# BfJ0AwnJX7tSojHKyNsUWecUSppTmOmzFUFMhf1ObYTo2O2yhJ+KCdnQhylIF358
+# JSvGHHMmjjICIdkhRuExXf7mrft8oMHjDQ7dnNJZx2e890qHCaB//DSHIEg=
 # SIG # End signature block

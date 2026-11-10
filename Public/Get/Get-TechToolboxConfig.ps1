@@ -155,7 +155,7 @@ function Get-TechToolboxConfig {
             for ($i = 0; $i -lt $Node.Count; $i++) {
                 $Node[$i] = Resolve-TechToolboxConfigNode -Node $Node[$i] -PathRoots $PathRoots
             }
-            return $Node
+            return ,$Node
         }
 
         if ($Node -is [string]) {
@@ -191,6 +191,12 @@ function Get-TechToolboxConfig {
         }
 
         if ($null -eq $Base) {
+            if ($Override -is [System.Collections.IEnumerable] -and
+                -not ($Override -is [string]) -and
+                -not ($Override -is [System.Collections.IDictionary])) {
+                return ,$Override
+            }
+
             return $Override
         }
 
@@ -208,6 +214,14 @@ function Get-TechToolboxConfig {
         }
 
         # Arrays and scalar values are replaced wholesale by the override value.
+        # Return collections as a single pipeline object so function output does not
+        # enumerate and collapse singleton (or empty) collection overrides.
+        if ($Override -is [System.Collections.IEnumerable] -and
+            -not ($Override -is [string]) -and
+            -not ($Override -is [System.Collections.IDictionary])) {
+            return ,$Override
+        }
+
         return $Override
     }
 
@@ -329,11 +343,13 @@ function Get-TechToolboxConfig {
     return $data
 }
 
+
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA611n3QPUxmNOx
-# 5w8uNIJKRcpDqyT8BDQZmAuWBgUfZaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDB1QiODpGRWeUV
+# CkY5EG0fMNpIUKWBrnNbOWdkMjZOCqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -510,31 +526,31 @@ function Get-TechToolboxConfig {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC3
-# YFdMMb6IcrinGCc9VJ5UtC8MXhIugOpvM7qf6lcggzANBgkqhkiG9w0BAQEFAASC
-# AYDTaMR1MmW/T2DkjtOFVliUybKkGBMSaziaDBYAHLe4QtrQXGT1YLtB1IxpKg8h
-# FfbEJ1OPHhg6mYP+tIPxSw2Kw7mvlMWdQmv5Z6BiQKFGItwJW/W2/dtsJU1Ee4+Y
-# tdUDt8jgf1tyPxhoD5aGm4jrbDThSSeRiMy09/Y4A6R96UbDHUsqKxwC8rubQJYw
-# 5kSV4FHOFzRYvVPHgvw+9L/awTlVitU6iLSYwSfyfH3xsG+rG/yb5CGpnT0a1gxV
-# KoDlPAJzh1AwRvluND4czpFJz4vfOGf+KwS5zETMoPwIK/aKAb/lsRKm8lRKeC1E
-# +jNP6M+pYEwn/2C+V9c3Z1fp6X3RHMfHExStBzjR+OG9RSJyb9lpQcZ0hUU52uky
-# UXBlPqruMUfP+RZQCaolAq1PcKBA0Ejs4RnZ9c8Zfj+76aoIQLSMsunXZNM1z/1a
-# BwS16SyV81KhztzYh6kVicGAIVgJLgCyS8/Qia0g4tPTrnqnpsLZ3kjq5n3DRD7h
-# 3EShggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAe
+# KFpY59FDyBuxNH9xsyATSkouCJkjxpbnCz/s68ypCjANBgkqhkiG9w0BAQEFAASC
+# AYB+t3tVaMestfNfornqt58Y4Jn7TfAYv8Vj9ySyun1Xrh32wPC2AL7H0A2SfBaE
+# 53FamYIXkO0kLAKqruaeQ7QdYiA8z+axqd8q2Xln7vXJx9SjLr4L75lsJ542vEDu
+# ANvvSobicP0CCPzF5ct8dh1KElFFCl3hn9twm7LXPrJfIKbX/kSWJhFrYpb0xNUN
+# HtUvh8tW7jykDyyYOAhWmQiEwg9Srewr7tHbhblQH0sLR02l2mYI9xZVLYWDZCbE
+# iK8zZ5Et68t7O5udCKy7D7s0lNlFF3LqRk0ROpsnaO/vFe9lDharlL3W4LwzzQYw
+# EzSEPxu/T38jeNEGUIQr8tAFxGKoG/wX6VB61MwcMKzmb+XeE/paRP7c/vSroeH+
+# aza8QiCzDjL8OIFzblbYIWz2dZPZVXLXgUYUjJRK5tTBshhksA3SZIpPkDlmkxwD
+# +PRf48RAwXBoKdjes06wsI32I81r0A/W8kA5K5zRtCCTxsrFJ7U7/Xl6mRa5M5x1
+# FMahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDI5MTY1NzQ0WjAvBgkqhkiG
-# 9w0BCQQxIgQgvzhhaHOkxAkgCUAq5KUkLIyqefP8Le+xUjTVaKS3Uq0wDQYJKoZI
-# hvcNAQEBBQAEggIAUynDzTBfPTIb9Afq1ERIQUDXogc7JPH5tAYQOXqx3dngl8AR
-# e7UHmkiLgVCkwA70B78t+GqmpwBXZUFbrbPRYg5vx1VIcArcpo5eHp0Lp0g5qO9D
-# NsIYr8wpfJ4uCKznH1XYWLoRXq7tajX0QURVZH+dLqovEHVzMa/KAQK2vCb6mLmr
-# 3iBf1U+vdMcnl4woj3872aeCmqIVppDjVJoXJgqyeJcJSEJBJIgu43DCsLyairPL
-# bsPl0zrlrvQjaGi8ft+MDT3obbsSeZQQMMQr4jNBw+jOVILl7aa1Af2tXEh4EXtY
-# yZWRPjRLoCtdFJT4xyfYbOoYBncF3Rmwpukcm9JAjJZjxSj2gW3xOW9tnMTccTxm
-# Kv31yAc5CqYCQaz/Bpq2IPfH2pBRoehd1Lrn1Nw62cDEEQLBoT2JWV9nGo84D2FL
-# iNItv/tpbgkGuKloPcwEVa0KEWGdTXPLcVoz/vNFM0Fxf+HnXym5H5UTvBIvlbfy
-# 0rv/Nk5wqh5Jwg6nQXFarwKUURdsVAyb0HP8mHj5K4z4/qymUWEA13++yHopEmzd
-# queu5V97rpo4CUjmJRN/BkdS63mjnqKgvkQvrcNnK36DQ72ZMHGcJM18F/m/VWoG
-# UaFMAkpZhBG1V4RBsjlCr+Ej5km524tunmDosMW9ZFf2byqbZwuLamBw0jE=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTEwMDMxMjA0WjAvBgkqhkiG
+# 9w0BCQQxIgQgOOtSM5J/gMgHEirAchLVhmUJR0vvV+0He/bItj7khVAwDQYJKoZI
+# hvcNAQEBBQAEggIAOArHiIiuOhUJh55pNulhuXUCu91sW27Pxb9VKm0lwOkeF4iE
+# fOkOFow4Txtg3m2L5B6VnD/584McRNoP8YPiWWl/cDHueKrBvsi9z6Jt7URovhzr
+# YAnQOzgQEPsdcJib+XN0+l2KtRq0XTQFGcAUDE4mjZ4NcJnHDCAw2Uo8fJTKzgcd
+# Vj02zMy/WT0EVa8V3o7qOCs3MUpkIMJgqgEJXCiY/ySeVRnCEvMicRRtO27yB2hB
+# S5Ws+DmAEIoJTt7eRIBB6P62ABatYrT5T0M9faCDHYiYep0O0NXWfdZbxaHwioIO
+# eXYFLWGJuvAX5qC0xTG/nhDGoM4WtmzZ5jum8wY7v27AkhUWIhO+7pOdIwBhzoGs
+# osjkHP03XC0pX2atITRpaNDmrYwiIubtsNlF5IUIqsgxSAwAgHa6r1tY1GeiBQHK
+# KMdKA1M2ykQXCXQUUgGABucnwRli/jwZgCrJZaTLvZLhIJlgP7Ero8UpxVaetoij
+# Y3dIiR3kaqMOzgxrqGp92iP0oikACQk0cWBOUkszQ3ckZ4dkRm8++a5hUusdZXpG
+# OWnxUH3fN6/JqCl2/FNEpSlyO9Q1YzP3RaZLJhXQi/HejpgBbhk6gCFANG03vAWJ
+# mWbIYzd2IVfW3Ikhn7CXYsGdzEVQkkmpn4X17JrMnTc3e96+KQI8FKfsBGE=
 # SIG # End signature block
