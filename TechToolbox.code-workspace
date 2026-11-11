@@ -61,6 +61,10 @@
         "git.confirmSync": false,
         "git.autofetch": true,
         "diffEditor.ignoreTrimWhitespace": false,
+        // ------------------------------
+        // .NET / C# Dev Kit
+        // ------------------------------
+        "dotnet.defaultSolution": "TechToolbox.sln",
         "[jsonc]": {
             "editor.defaultFormatter": "vscode.json-language-features"
         },

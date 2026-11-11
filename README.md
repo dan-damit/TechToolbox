@@ -191,6 +191,8 @@ maintenance. Use `-WhatIf` where supported, review approval prompts, never
 commit secrets, and restrict MCP tools and agent filesystem roots. Check paths
 with `Test-TTPathRoots`; check command help and `COMMANDS.md` for current
 parameters.
+For .NET restore/build operations, use the root solution file
+`TechToolbox.sln`.
 
 ## Metadata
 

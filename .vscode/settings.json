@@ -199,6 +199,7 @@
         "wuauserv",
         "yzhang"
     ],
+    "dotnet.defaultSolution": "TechToolbox.sln",
     "python-envs.pythonProjects": [
         {
             "path": ".",
