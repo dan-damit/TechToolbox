@@ -133,7 +133,7 @@
         "model": "qwen3.5:9b",
         "maxContextTokens": 128000,
         "maxResults": 30,
-        "timeoutSeconds": 10,
+        "timeoutSeconds": 90,
         "directories": [
           "src/TechToolbox.Agent",
           "src/TechShell/src",
