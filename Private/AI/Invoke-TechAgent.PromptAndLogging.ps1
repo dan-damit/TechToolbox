@@ -597,6 +597,45 @@ function Resolve-TTAgentExpectedOutputPath {
         return $trimmed
     }
 
+    $isPlausibleExpectedOutputFile = {
+        param([string]$CandidatePath)
+
+        if ([string]::IsNullOrWhiteSpace($CandidatePath)) {
+            return $false
+        }
+
+        $trimmed = $CandidatePath.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            return $false
+        }
+
+        if ($trimmed.EndsWith('\', [System.StringComparison]::OrdinalIgnoreCase) -or $trimmed.EndsWith('/', [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $false
+        }
+
+        if (Test-Path -LiteralPath $trimmed -PathType Container) {
+            return $false
+        }
+
+        if ([string]::IsNullOrWhiteSpace([System.IO.Path]::GetFileName($trimmed))) {
+            return $false
+        }
+
+        $extensionText = [System.IO.Path]::GetExtension($trimmed).TrimStart('.')
+        if ([string]::IsNullOrWhiteSpace($extensionText)) {
+            return $false
+        }
+
+        $allowListedLongExtensions = @(
+            'config', 'csproj', 'jsonl', 'markdown', 'psd1', 'psm1', 'settings', 'toml', 'vscode'
+        )
+        if ($extensionText.Length -gt 8 -and $allowListedLongExtensions -notcontains $extensionText.ToLowerInvariant()) {
+            return $false
+        }
+
+        return $true
+    }
+
     $normalizeWildcardDirectoryPath = {
         param([string]$CandidatePath)
 
@@ -652,6 +691,41 @@ function Resolve-TTAgentExpectedOutputPath {
         return (Join-Path -Path $normalizedDirectory -ChildPath $fileName)
     }
 
+    $stripPromptMetaExampleBlocks = {
+        param([string]$Text)
+
+        if ([string]::IsNullOrWhiteSpace($Text)) {
+            return $Text
+        }
+
+        $lines = $Text -split "`r?`n"
+        $filtered = New-Object System.Collections.Generic.List[string]
+        $inMetaExampleBlock = $false
+
+        foreach ($line in $lines) {
+            $trimmed = $line.Trim()
+
+            if ([string]::IsNullOrWhiteSpace($trimmed)) {
+                $inMetaExampleBlock = $false
+                $filtered.Add($line)
+                continue
+            }
+
+            if ($trimmed -match '(?i)^(?:\*|-|\d+\.)?\s*(?:expected|example|examples|(?:also\s+)?(?:test\s+)?positive\s+controls?|(?:also\s+)?(?:test\s+)?positive\s+control|sample(?:s)?|test\s+cases?|validation\s+cases?)\b') {
+                $inMetaExampleBlock = $true
+                continue
+            }
+
+            if ($inMetaExampleBlock) {
+                continue
+            }
+
+            $filtered.Add($line)
+        }
+
+        return ($filtered -join [Environment]::NewLine)
+    }
+
     $promptContainsReadOnlyReferenceIntent = {
         param([string]$Text)
 
@@ -664,6 +738,32 @@ function Resolve-TTAgentExpectedOutputPath {
             '(?is)\b(?:read|inspect|consume|reference|source\s+document|based\s+on|according\s+to|read\s+completely|treat\s+as\s+authoritative|authoritative\s+(?:input|map|spec(?:ification)?)|use\s+(?:as\s+)?(?:the\s+)?(?:input|spec(?:ification)?)|no\s+output\s+file\s+is\s+requested)\b')
     }
 
+    $promptExplicitlyRejectsOutputDeliverable = {
+        param([string]$Text)
+
+        if ([string]::IsNullOrWhiteSpace($Text)) {
+            return $false
+        }
+
+        return [regex]::IsMatch(
+            $Text,
+            '(?is)\b(?:no\s+(?:output\s+)?file\s+(?:deliverable|requested|required)|this\s+task\s+has\s+no\s+output\s+file\b|this\s+task\s+has\s+no\s+output\s+deliverable\b|return\s+the\s+result\s+in\s+chat\s+only\b|report\s+the\s+result\s+only\b|do\s+not\s+(?:create|write|save|persist)\s+(?:an?\s+)?(?:output\s+)?file\b|do\s+not\s+use\s+(?:filesystem\s+)?(?:write\s+tools?|write_file|write\s+capability)\b|no\s+filesystem\s+writes?\b|write\s+operation\s+is\s+prohibited\b)'
+        )
+    }
+
+    $promptDisallowsWriteIntent = {
+        param([string]$Text)
+
+        if ([string]::IsNullOrWhiteSpace($Text)) {
+            return $false
+        }
+
+        return [regex]::IsMatch(
+            $Text,
+            '(?is)\b(?:do\s+not|do\s+''t|don''t|never|no)\s+(?:use\s+)?(?:filesystem\s+)?(?:write|rewrite|update|edit|modify|insert|create|overwrite|save|export|generate|produce|replace|persist|write_file|write\s+tools?|write\s+capability)\b|\b(?:do\s+not\s+use\s+(?:filesystem\s+)?write(?:\s+tools?)?|no\s+filesystem\s+writes?)\b'
+        )
+    }
+
     $extractExplicitMutationPath = {
         param([string]$Text)
 
@@ -671,14 +771,22 @@ function Resolve-TTAgentExpectedOutputPath {
             return $null
         }
 
+        $negativeIntentPattern = '(?is)\b(?:no\s+(?:output\s+)?file\s+(?:deliverable|requested|required)|this\s+task\s+has\s+no\s+output\s+file\b|this\s+task\s+has\s+no\s+output\s+deliverable\b|return\s+the\s+result\s+in\s+chat\s+only\b|report\s+the\s+result\s+only\b|do\s+not\s+(?:create|write|save|persist)\s+(?:an?\s+)?(?:output\s+)?file\b|do\s+not\s+use\s+(?:filesystem\s+)?(?:write\s+tools?|write_file|write\s+capability)\b|no\s+filesystem\s+writes?\b|write\s+operation\s+is\s+prohibited\b|do\s+not\s+use\s+(?:filesystem\s+)?write(?:\s+tools?)?|no\s+filesystem\s+writes?)\b'
+        $negativeIntentMatch = [regex]::Match($Text, $negativeIntentPattern)
+        $negativeIntentIndex = if ($negativeIntentMatch.Success) { $negativeIntentMatch.Index } else { -1 }
+
         $explicitMutationPatterns = @(
-            '(?is)\b(?:create|write|save|export|generate|produce|update|overwrite|replace|persist)\b.*?\b(?:to|at|as)\b\s*(?<path>[A-Za-z]:\\[^"''`\r\n]*?\.[A-Za-z0-9]{1,16})',
+            '(?is)\b(?:create|write|save|export|generate|produce|update|overwrite|replace|persist)\b.*?\b(?:to|at|as)\b\s*(?<path>[A-Za-z]:\\[^"''`\r\n\s]*\.[A-Za-z0-9]{1,16})',
             '(?is)\b(?:save|write|output)\s+(?:the\s+)?(?:script|file|output)\s+to\s+(?<dir>[A-Za-z]:\\[^\r\n.?!]*?)(?:\.|\s+and\s+)(?:\s*)?(?:name\s+(?:the\s+)?(?:script|file)|the\s+(?:script|file)\s+is\s+named|named)\s+["''`]*(?<name>[^\s"''`\\/:*?<>|]+?\.[A-Za-z0-9]{1,16})\b'
         )
 
         foreach ($pattern in $explicitMutationPatterns) {
             $match = [regex]::Match($Text, $pattern)
             if ($match.Success) {
+                if ($negativeIntentIndex -ge 0 -and $match.Index -gt $negativeIntentIndex) {
+                    continue
+                }
+
                 $candidate = $match.Groups['path'].Value
                 if ([string]::IsNullOrWhiteSpace($candidate)) {
                     $candidate = (Join-Path -Path $match.Groups['dir'].Value.TrimEnd('\\', '/') -ChildPath $match.Groups['name'].Value.Trim())
@@ -700,6 +808,23 @@ function Resolve-TTAgentExpectedOutputPath {
             return $false
         }
 
+        if (& $promptExplicitlyRejectsOutputDeliverable -Text $Text) {
+            $explicitMutationPath = & $extractExplicitMutationPath -Text $Text
+            if ([string]::IsNullOrWhiteSpace($explicitMutationPath)) {
+                return $false
+            }
+        }
+
+        if ([regex]::IsMatch(
+                $Text,
+                '(?is)\b(?:filesystem\s+write\s+tools?|write\s+tool(?:s)?|write\s+capability|WRITE-FILE\s+tool|write_file\b|write\s+operation\s+is\s+prohibited|no\s+filesystem\s+writes?)\b'
+            )) {
+            $explicitMutationPath = & $extractExplicitMutationPath -Text $Text
+            if ([string]::IsNullOrWhiteSpace($explicitMutationPath)) {
+                return $false
+            }
+        }
+
         return [regex]::IsMatch(
             $Text,
             '(?is)\b(?:write|rewrite|update|overwrite|create|save|export|generate|produce|replace|persist)\b|\buse\s+write(?:-|=|\s*)file\b|\bwrite(?:-|=|\s*)file\b')
@@ -709,8 +834,24 @@ function Resolve-TTAgentExpectedOutputPath {
         return $null
     }
 
-    if (& $promptContainsReadOnlyReferenceIntent -Text $PromptText) {
-        $explicitMutationPath = & $extractExplicitMutationPath -Text $PromptText
+    $instructionText = & $stripPromptMetaExampleBlocks -Text $PromptText
+
+    if (& $promptContainsReadOnlyReferenceIntent -Text $instructionText) {
+        $explicitMutationPath = & $extractExplicitMutationPath -Text $instructionText
+        if ([string]::IsNullOrWhiteSpace($explicitMutationPath)) {
+            return $null
+        }
+    }
+
+    if (& $promptExplicitlyRejectsOutputDeliverable -Text $instructionText) {
+        $explicitMutationPath = & $extractExplicitMutationPath -Text $instructionText
+        if ([string]::IsNullOrWhiteSpace($explicitMutationPath)) {
+            return $null
+        }
+    }
+
+    if (& $promptDisallowsWriteIntent -Text $instructionText) {
+        $explicitMutationPath = & $extractExplicitMutationPath -Text $instructionText
         if ([string]::IsNullOrWhiteSpace($explicitMutationPath)) {
             return $null
         }
@@ -746,7 +887,7 @@ function Resolve-TTAgentExpectedOutputPath {
     if (& $promptIndicatesWriteIntent -Text $PromptText) {
         $genericPathMatches = [regex]::Matches(
             $PromptText,
-            '(?i)(?<path>[A-Za-z]:\\[^"''`\r\n]*?\.[A-Za-z0-9]{1,16})(?=\s|$|[)\],;:.!?])')
+            '(?i)(?<path>[A-Za-z]:\\[^"''`\r\n\s]*\.[A-Za-z0-9]{1,16})(?=\s|$|[)\],;:.!?])')
 
         if ($genericPathMatches.Count -gt 0) {
             for ($i = $genericPathMatches.Count - 1; $i -ge 0; $i--) {
@@ -766,6 +907,10 @@ function Resolve-TTAgentExpectedOutputPath {
                 }
 
                 if ($candidate.EndsWith('\\', [System.StringComparison]::Ordinal)) {
+                    continue
+                }
+
+                if (-not (& $isPlausibleExpectedOutputFile -CandidatePath $candidate)) {
                     continue
                 }
 
@@ -828,7 +973,12 @@ function Resolve-TTAgentExpectedOutputPath {
         return $null
     }
 
-    return (Join-Path -Path $targetDirectory.TrimEnd('\', '/') -ChildPath $fileName)
+    $candidateFilePath = (Join-Path -Path $targetDirectory.TrimEnd('\', '/') -ChildPath $fileName)
+    if (-not (& $isPlausibleExpectedOutputFile -CandidatePath $candidateFilePath)) {
+        return $null
+    }
+
+    return $candidateFilePath
 }
 
 function Test-TTAgentExpectedOutputFile {
@@ -1390,8 +1540,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD774GGEsZ0nd8Z
-# 1pxaea7zhu+e2hTWe4Z/X+mUBNvk+qCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCJOHDaJVEda/xB
+# Ax634Sa6qbhGt1OZao0X+aMYf9sGA6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -1568,31 +1718,31 @@ function Write-TTAgentMarkdownLog {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCZ
-# 76WNxrd8VUI7yYz79ZzS3JAnyZAATFQndSzhcIpebDANBgkqhkiG9w0BAQEFAASC
-# AYAmlX5xmghd+0gx9YWe/4l3/fV3zGevioYzQDI5VybmyMB/s24p0jv9egM6OEBd
-# zw3HAxcu3qpT8609MjbLvCdc9vgwzSKNmkl2PE6m183MjMIjN2if2qiaQBbebHOq
-# dIvJkuqp+y0WbV9Ro99aMIqre7lRorqY8DXNo6r/A4G4vMex2B8RnDV70DXQYpgP
-# oiObwkSafxC/rwlCfxzvBJt+GWysxbzWgwIKA6SxGnZMRaeV4NIF79t1Zcsd9W3x
-# gxVj+OU/02uArCD4NCmgiRFAXMroToNtMFuPLR1NUPthOJL5Cys25inWsvPp/e/C
-# 7xQ6gRKyqkB8FY8xtABlDJR3oW9tXxwCL/BVJdtpTP3r3lXWaHN59tA3G6imUYdO
-# VSl3vpy9Pg3MU5up83h7q533nnE1Oj/BI7eEwR2GPmi7ZaZDxJT+3W85TWNhHkhW
-# 4ksHS2ybytDBk1Rek5Yo4Koa3ABAcNAERNjXESu6y3yXj5/vGdVW9lZvTDsFecg7
-# yg+hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDU
+# rPktIKxjYXrE2i2LNijBfAP+Ff157I+5nhcy4EEGfjANBgkqhkiG9w0BAQEFAASC
+# AYDE9RmoWtLkVFo2YR6WMbZKRFlZksClKbY+RliQiCbGFuIEZv0iTFqncFFJC1IM
+# bMO4xNXCkgHyY3Fy/0V+OerEfHfsOJS2qx5uDPIydUFQOX4BHmfeOlR4eCUwtNRn
+# s80q0ivAmbPeOUd4yslZrvWQaUR9O+TeH8DdDHCGYAk40uWdsF2KAYJsTNFTrEcN
+# hePByMp+ehK4iaNJ079ts7fV3f1gF4naawgHtiXR94In12JHr1pBfRKfEDKxAiML
+# hfc5J50zFaJs3I9HOkAP1zGpuF0WzgC6ViJLu3+B1a1f1AND5PRoHPzdZ7YEFAdn
+# ud9KveudRDkiBrZmmSFZq6OJAH9I3SCixIOjVury3QpVErKd6ZW9hh7MfsYIy2V9
+# Vh90LMhYk4AB0uk6pome4aiApNiD/v2lqBHSvuEWBB7ai9Pr74yYvCQ8Qscs9CSn
+# RXNM2Yymoy89u+YTrv0VnCB/Cg6s/f+kkTfDcf5Yy3JwGQBqMHGj+sNqxsuc5ZlH
+# mzChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDYwOTMxWjAvBgkqhkiG
-# 9w0BCQQxIgQgpqIuHviPWbl/XaYC2tCE6oQRBIJ82vPu96DHTS7RZtswDQYJKoZI
-# hvcNAQEBBQAEggIAJk7x4JIyXeNL0+/pUWllBNC6X8+2kYn2YZFYT7SZYZh2IWbx
-# lezqki4fNudf1dtW4pZMZm7u4F8HSB7L/1HfcmoAGQpPCz+DpUCl+npC71VPdFMF
-# Yf1xPjpHi7n8N8issF3/HXlJwILJKh0XfITwyBy1RLIsUILIV+CgiI31f9WjK/Ui
-# 1LO9Dxl+k69Fy+2UipsJfb6aAuFutwSXtY1truCMdjtcHSyQfdU0kiBkf+otMLk/
-# 6Rjx7qxkBcfUrg3IkZ4b3zijHVP29vqcZP+jkCWXHqOAXG8KuHxtivjB7cZ5UKZ3
-# g44q9LHiwVcXhmJO9CHgJrZWkqkWX1TGKgYRCrOIHMqnJCEMU8oKeQwmtg6fjKA0
-# v4efW8ZHMAkSEyO/vnKqIKMOFcJL1RjMPCFLdrao7Us3rpruzCkO51pdUsEH766a
-# LcErB0tDcwH6go0MrKl44c+08a8a3jUnCZd6U7FuVJfBZsczsDR6YLJdX1+mGmOo
-# mnoMc+FzXWco5ulN8dH3MGivE8tREtSLx0yWnPpKla/Z7kYgIFgRiRKP5t34mNND
-# ApyYFc8b60YVuEjvLg85h6gNS0+e+wvd0Fm4eEh0+pCNWYQNgDZDiG+ILwhSnEFo
-# nI4u8g9Al8i5ij/1+H+gTyk3C2AL9Ewk4E6yFYIXmnh9UBI8gFr10k1hl3k=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTE0MjEzNjUxWjAvBgkqhkiG
+# 9w0BCQQxIgQgZnjy7tByKm4cv5Sr1TvQjrLJru2/I4Jxk91jUpA87McwDQYJKoZI
+# hvcNAQEBBQAEggIAVmWVbzrFmPBOlsD5/ogHExQjJHCxeby8TSsC0hqqJR6mh1ZN
+# j0AUSZY5GmzREwjRy+hJFQ6C5esbiIbuTxbfiyM1hQDHbUCFfOQHjXPYwVydrHeJ
+# HxNr7EazVVBr0CX0njLr4PmPmxcIJyrmps3V+bq2QUc3fhl589a17abjxJbFanOR
+# /kQ7rLUPnWbhNlKgI4fiAuVFwn9VmV6Skdd2kt5oVqWsCtOE+qHAwQionOnQQqm2
+# V482f2yXXz41dFiKayW90WXyaZnzOnA5q7IXJMiKzDVDZ4+ATfAxwbVDykVRbzg4
+# wWgcsFRN35COQFJjNhWA6qofnyjout2uXGpimCTK261NCiuIn6J5vyjCkBxKOWi0
+# IS6kqmN7P8k8Oe30zjUO2Kz/t8qF44nG7VoOVz9uJmN5zN90JpOi7rOQkt7xBwEO
+# OYTIqt8mzdSSHZZPHCjlaDXMnBh2HGTTPocpOYaOPMU3OvnI0zElwQCtD7sGkSo5
+# BL9Vo77iOf97H0lnH6stlRj2zpQg08tTglJyicwr0AYiHIZzbRuiaiPPe45lxjOu
+# U/kf4JyTSkINtDi1ysb57/U3mS4oc0wC1cmdAAdvuB9+F/R9sp7WOxOskIG9w/IO
+# PhNA4oy+ajAU2dUg4HpedAkzJV5mRmvpHPFyMP8r5o/Ui/BI8RGgu35ZlAE=
 # SIG # End signature block

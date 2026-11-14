@@ -117,6 +117,105 @@ No output file is requested.
         }
     }
 
+    It "Does not infer an output path when the prompt forbids write operations in a read-only task" {
+        InModuleScope TechToolbox {
+            $prompt = @'
+Resume the semantic-index identity-reconciliation task.
+Do not rewrite manifests, prune identities, or delete generations.
+Read C:\repos\TechToolbox\src\TechToolbox.Agent\Retrieval\SemanticIdentityReconciliationPlanner.cs and inspect the current planner state.
+Search C:\repos\TechToolbox\src\TechToolbox.Agent for SemanticIdentityReconciliationPlanner.
+'@
+
+            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+            $resolved | Should -BeNullOrEmpty
+        }
+    }
+
+    It "Does not infer an output path when adjacent prose is attached to a read-only path token" {
+        InModuleScope TechToolbox {
+            $prompt = @'
+Read C:\repos\TechToolbox\src\TechToolbox.Agent\Retrieval\SemanticIdentityReconciliationPlanner.cs and inspect the current planner state.
+Use the semantic-index snapshot fingerprint and read-only reconciliation guidance.
+Keep the typed .NET provider and runtime selection aligned with the current build.
+The
+'@
+
+            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+            $resolved | Should -BeNullOrEmpty
+        }
+    }
+
+    It "Does not infer an output file from the exact live no-deliverable build prompt" {
+        InModuleScope TechToolbox {
+            $prompt = @'
+Build C:\repos\TechToolbox\src\TechToolbox.Agent\TechToolbox.Agent.csproj in
+Release using techtoolbox.dotnet.build. This task has no output file
+deliverable. Report the structured build result and exit code. Do not use
+PowerShell, Git, filesystem write tools, or any fallback capability.
+'@
+
+            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+            $resolved | Should -BeNullOrEmpty
+        }
+    }
+
+    It "Ignores positive-control example paths when a no-output prompt appears earlier in the same document" {
+        InModuleScope TechToolbox {
+            $prompt = @'
+Build C:\repos\TechToolbox\src\TechToolbox.Agent\TechToolbox.Agent.csproj in
+Release using techtoolbox.dotnet.build. This task has no output file
+deliverable. Report the structured build result and exit code. Do not use
+PowerShell, Git, filesystem write tools, or any fallback capability.
+
+Also test positive controls:
+- Use write_file to create C:\Temp\report.md.
+- Write the result to C:\Temp\report.md.
+- Save the report as C:\Temp\report.md.
+'@
+
+            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+            $resolved | Should -BeNullOrEmpty
+        }
+    }
+
+    It "Rejects repository directories and other directory-shaped paths as file output targets" {
+        InModuleScope TechToolbox {
+            $paths = @(
+                'C:\repos\TechToolbox',
+                'C:\repos\TechToolbox\src',
+                'C:\repos\TechToolbox\src\TechToolbox.Agent',
+                (Join-Path -Path $env:TEMP -ChildPath ('tt-agent-output-directory-' + [guid]::NewGuid().ToString('N')))
+            )
+
+            foreach ($path in $paths) {
+                $prompt = @"
+Read, search, build, and test under $path.
+Generate a final diagnostic report in plain text without creating or updating an output file.
+"@
+
+                $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+                $resolved | Should -BeNullOrEmpty -Because "read-only repository and directory inputs must not be treated as required output files: $path"
+            }
+        }
+    }
+
+    It "Does not treat a project path followed by a tool name as a required output file" {
+        InModuleScope TechToolbox {
+            $prompt = @'
+Run the existing DotNetDevelopmentToolTests from: C:\repos\TechToolbox\src\TechToolbox.Agent\Tests\TechToolbox.Agent.Tests.csproj using techtoolbox.dotnet.test.
+'@
+
+            $resolved = Resolve-TTAgentExpectedOutputPath -PromptText $prompt
+
+            $resolved | Should -BeNullOrEmpty
+        }
+    }
+
     It "Prefers an explicit save path over a read-only reference path" {
         InModuleScope TechToolbox {
             $prompt = 'Read C:\repos\TechToolbox\AI\Tasks\ScenarioA-ExtractionMap.md and save your report to C:\repos\TechToolbox\artifacts\scenarioA-report.md.'
@@ -264,8 +363,8 @@ foreach ($item in 1..2) {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCoy3+NzU/tpbyp
-# VXVND32NePl0eHhW1X+xs6TICcT8oKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBFyJ8ds8CZOgU7
+# xaI3btwuj8o/lVwA2gUYWc4+N+Vp/6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -442,31 +541,31 @@ foreach ($item in 1..2) {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCC
-# AhZZxYr4LpIiLzShE51lhv+tz0VTmXW7wKuU20rbuTANBgkqhkiG9w0BAQEFAASC
-# AYCpymi45fITndg6ew9ginGW58LVJGz9tsd7Yv4DTL6NT07IBlRGzH82HPUQ2c3S
-# Vy3V5UBrDLFAqcVdwnqYNOmRn+K5vMMUgOQjZSiPQxV/+qYGlTlCb3rLQtLs4qza
-# kNvCoCnb+vXO70A0fssyCwJPCVUjijAEYCHiNYViP/acfNQCDrrYd+16V+/pvjpu
-# yaVxsfM+VUXzYkMcfuPsU42t1oV8N8ZpPdgGtogZCcOpkC6xws4GDteEfK0AV/zD
-# v+lD+2M6XS8KlR8WFPJB4MB9SoteNtJZBSRSUNJGF7mimchvPYjL1HGn+1Bg9JFV
-# CQn3L+4icaWKX8wp6IAO4XXW07OMldtwD1MUNrlEaPTnbQ/Ha9rcQvxJe5ZPDIR9
-# hfMQa3DeDMgQ3vbOiI7NwXNna4iJFuSHGYcn5uEVlCupYyjK8gt+ALuop2zipVoT
-# uBtSa3/O9Ig/rXDGR0O3Zfu9kSftq+VBCZCsJWEsPfw7ZEKSwzl6U4fH+uMfaO10
-# 2NyhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDE
+# saKNv41w4GBdG1/N5LMFmaqE0Hx99JdifQz65izORzANBgkqhkiG9w0BAQEFAASC
+# AYDYT0b8NRcdb/f1Nc81bSEnSenLVYA3rI1i9zysg+mO33rsnxh6yZL6j9QeohuC
+# PSoTYSAxM/OhyJ0OWTRfilqNZJmL0OKGfXOUj2vi3aMW68DXI1OIHHq0h6SrclXB
+# 7urqxATnfFpivt/Mhil4SSrcrD+oe3VLikISTZeWbqPKMdTmwGPH/rBNPNQDNiqq
+# 26Rysx7cgMVKSQSPb3qHogE7C4C04R096RlPOLAF3mz+X5mOJyNF96PF5bPNs4fZ
+# TF59KX+vFWwoSIABmlJKFhI6i+dqGfDGhwl3pgXg+XeWb9LNcpyPrNAnmwY42UyG
+# xZ8DAFrZCIR2bcsSEsSHxsYqKvj34IzOSmIdXDg838DyNLh6x3X8OlIC/gHRgg77
+# SAIV2P2WjiFYrk2rvtg87/wBCntYJyFd65zd2SsUpVX0jfbmtOwI5YdZ64sgnFTY
+# kSTa7IvmYCFryG0Gdcddu7uAgzo/apdvS4opAM6xyPnoJMbr4JXWFxXSe8eYiHOD
+# f0yhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDYyMTU3WjAvBgkqhkiG
-# 9w0BCQQxIgQgbQDL8QD4uU/Ccy+v9c0NfTQ0hsnxljOfzH5g7KnSi3AwDQYJKoZI
-# hvcNAQEBBQAEggIAAkmzb2kS+W6iw/GgiXwQEiIk6NEQtiF/DNfBOv19im4ouljh
-# 2ZrB0jWjZBOQapv/XYekKqa9VHOCw61LkBn9VICGwS/jfSDvLKrp3Yu63KZpxiYN
-# WqNie4WAuVzcbSvqzX1l4i9VxV1e7bGLtQiKOOyh+o4bqM6IwQi04XFW/JKwFUve
-# V3KQiciY1kxYWkIpop1e9+oWIRqb8AVml0oM8nsaSrnoSFif/BFq0AB/QhnZIph6
-# BC29Vxb8x7HWDO6JU7aHVBSLZay/1SMcnlQFDKWoNIgPnqAcCrtn/eyj34BPu84b
-# A/b49jjCK43Nd+eWKjjOFnr9oBoIw49+xTh6NB6jGfrslRwvq2LAhXfmrecGeaLC
-# An4vhB1Zmyw5fCkf/mxH6rqvXC6oVYENZNyJOz6DEKALjnNkdQEIM88OAUM2RzEg
-# F2/VpOHSQSxUzIfUHHwRfFBG+J/RVJPm7wVV4BHWSLWnPPJoGSWAsmwciLGFxDe7
-# yHLc1CngOImnNbHGBitWw0tC/fCffZciB6s9J7kT2iyEBr/ONYg9J9W0doj4Hhc6
-# MXJe2w9ochwuMUZbGwJZI4/351sK3y2sXaaa2DI1tHcIIYhmGqjMrFg3Y65dnwa0
-# bsdjtApB+VMtEbfXqFbWhHLSOn1/x7IUcYOeJ2IUKWnVtsCIA4ZatCZTiQ8=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTE0MjEzNjU1WjAvBgkqhkiG
+# 9w0BCQQxIgQgYFbkBIq859jfJf3eerp0KNePefo134V2rkv9ZNAm9O0wDQYJKoZI
+# hvcNAQEBBQAEggIAJbO9PZjjJmJLSc+N8mukEsKDBuv5TNNWHF4u21sWnslLYBi3
+# dj1bVp7umqa/nFSKJ5Hp94yYowPCEZO4grcMvW3IN+LfkbyhLpi+WKmG8pMzcdBe
+# a8cydC7SCFwp/GYpq8buiFpKLZSTuiEW2lcGStlax+BhL7Vma4H8CDsqt5S71CyZ
+# Se7ebSyqOSPMLu2UKX4tCWcUxijmZ3TH8Z0BGf35JF7AS/roTkwDhtlZ9hjR0p5b
+# X+ipUglhzwdC+7z/4Tgnm7FYItKckOfpWhjlvkWzSnxIlYhJVpCLg+ZLWKMn1i1v
+# IR4bH2DaiPg/ykwGcVhnEN6AacDFSOhHKYszGshedqd4wEgHpRj4lglNpv2R53z/
+# A0rAq7JPfRTbMye1TFU0W3IKg0mxeP8NJJfMTsqkoeRx/rI1ic3eCQY4JqwBXm9W
+# aG+aTlY+xqc+a85Eanfb6y1f1Th5MJKHrzqQeXm+B3pQM+bFWcnUGgTKC1RIpyCN
+# O47Ypk4t4SE963oI9KH5PDkyq7lziFyKhsjWcvMRt6gMfumpfmehaS2EuAT4pPUO
+# DxYvuUTymHTPq2aQQu8S2NsCkpBZCuBLU/4ScBkBvurMf09TYPUeoPYdg9KHG0tq
+# Yx1JBjypSrJhYjWeti7HUUay2BGpRJ/eCDQEBKpYgL7ky0xLkN5PPoAetK4=
 # SIG # End signature block
