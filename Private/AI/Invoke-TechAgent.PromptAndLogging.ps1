@@ -451,19 +451,33 @@ function Test-TTAgentPostflightGoal {
         [string]$PromptText,
         [string]$ResponseText,
         [int]$PreflightScore,
-        [string]$Mode = 'execute'
+        [string]$Mode = 'execute',
+        [string[]]$ToolTrace = @(),
+        [bool]$RagUsed = $false
     )
 
     if ([string]::IsNullOrWhiteSpace($PromptText)) {
         return @{ Achieved = $false; Reason = 'Prompt was empty.' }
     }
 
-    if ([string]::IsNullOrWhiteSpace($ResponseText)) {
+    $normalizedResponse = if ($null -ne $ResponseText) { $ResponseText.Trim() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($normalizedResponse)) {
+        return @{ Achieved = $false; Reason = 'No response text was produced.' }
+    }
+
+    $noOutputSentinel = $normalizedResponse -match '(?i)^tech agent completed with no output\.?$'
+    if ($noOutputSentinel) {
+        return @{ Achieved = $false; Reason = 'No response text was produced.' }
+    }
+
+    $hasToolEvidence = @($ToolTrace | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0
+    $hasNoOutputSignal = $normalizedResponse -match '(?i)^(?:tech agent )?completed with no output\.?$|^(?:task )?completed without output\.?$|^no output\.?$'
+    if ($hasNoOutputSignal -and -not $RagUsed -and -not $hasToolEvidence) {
         return @{ Achieved = $false; Reason = 'No response text was produced.' }
     }
 
     $promptLower = $PromptText.Trim().ToLowerInvariant()
-    $responseLower = $ResponseText.Trim().ToLowerInvariant()
+    $responseLower = $normalizedResponse.ToLowerInvariant()
 
     $hasCompletionSignal = (
         [regex]::IsMatch($responseLower, '(?im)^\s*##\s*result\b') -or
@@ -1540,8 +1554,8 @@ function Write-TTAgentMarkdownLog {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCJOHDaJVEda/xB
-# Ax634Sa6qbhGt1OZao0X+aMYf9sGA6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDaqDTuMW/Yeclb
+# ADDRGIrD2iamsW2o09eYnxtcpzTj8aCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -1718,31 +1732,31 @@ function Write-TTAgentMarkdownLog {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDU
-# rPktIKxjYXrE2i2LNijBfAP+Ff157I+5nhcy4EEGfjANBgkqhkiG9w0BAQEFAASC
-# AYDE9RmoWtLkVFo2YR6WMbZKRFlZksClKbY+RliQiCbGFuIEZv0iTFqncFFJC1IM
-# bMO4xNXCkgHyY3Fy/0V+OerEfHfsOJS2qx5uDPIydUFQOX4BHmfeOlR4eCUwtNRn
-# s80q0ivAmbPeOUd4yslZrvWQaUR9O+TeH8DdDHCGYAk40uWdsF2KAYJsTNFTrEcN
-# hePByMp+ehK4iaNJ079ts7fV3f1gF4naawgHtiXR94In12JHr1pBfRKfEDKxAiML
-# hfc5J50zFaJs3I9HOkAP1zGpuF0WzgC6ViJLu3+B1a1f1AND5PRoHPzdZ7YEFAdn
-# ud9KveudRDkiBrZmmSFZq6OJAH9I3SCixIOjVury3QpVErKd6ZW9hh7MfsYIy2V9
-# Vh90LMhYk4AB0uk6pome4aiApNiD/v2lqBHSvuEWBB7ai9Pr74yYvCQ8Qscs9CSn
-# RXNM2Yymoy89u+YTrv0VnCB/Cg6s/f+kkTfDcf5Yy3JwGQBqMHGj+sNqxsuc5ZlH
-# mzChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAX
+# A4n5cpZWWC9Kfdmyo3L5227G51Mxer8WsK7ah/y5UjANBgkqhkiG9w0BAQEFAASC
+# AYBO2dVR/Ho83uSRAZCH1qUkDRplr9ev+2ML5xGa52ZhqWLIgXLDHzotpPezIEjx
+# JxOJxa6Ww2HTOMJgyMJflbj5pID9FuatjjeNmlSIeFehdnADjL+GlsKVLlu+rJ9g
+# paq8AohgnBIK/qirP0N4wb/fBCPPwsTtAzMo808LAaiwRkWnaxUVJNBS+rJBZ/Ld
+# tCZE1gwSiGZD3BsvQIjgjf1XNS++uDupqK19bTsnFAkJoOCibOxNGcTa3y0VICvj
+# fxXVrna+A3ACWdCwbH+48lCqN1t6m8mzXBIx2eYmlAYJBNcLNtU34H/6gMdaUysM
+# 2MEq7PBrz+UCXJiDH5loySr6t6KSvAKLeAVOeLFyzVLg12I+Gsw0lXHuSYWHPc8h
+# TzlBCc6qyu77cc8Adkf6FHS6mpJ0DoC+3VYgdO3hHYCiefh4kJXsyCXPIyIv0Zni
+# w3OQdCXd2R8daUBJOI5Ywr0d1SAcGXe5c4yFXmBGxaw3Un2h3DRU7HibQAYyow53
+# okmhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTE0MjEzNjUxWjAvBgkqhkiG
-# 9w0BCQQxIgQgZnjy7tByKm4cv5Sr1TvQjrLJru2/I4Jxk91jUpA87McwDQYJKoZI
-# hvcNAQEBBQAEggIAVmWVbzrFmPBOlsD5/ogHExQjJHCxeby8TSsC0hqqJR6mh1ZN
-# j0AUSZY5GmzREwjRy+hJFQ6C5esbiIbuTxbfiyM1hQDHbUCFfOQHjXPYwVydrHeJ
-# HxNr7EazVVBr0CX0njLr4PmPmxcIJyrmps3V+bq2QUc3fhl589a17abjxJbFanOR
-# /kQ7rLUPnWbhNlKgI4fiAuVFwn9VmV6Skdd2kt5oVqWsCtOE+qHAwQionOnQQqm2
-# V482f2yXXz41dFiKayW90WXyaZnzOnA5q7IXJMiKzDVDZ4+ATfAxwbVDykVRbzg4
-# wWgcsFRN35COQFJjNhWA6qofnyjout2uXGpimCTK261NCiuIn6J5vyjCkBxKOWi0
-# IS6kqmN7P8k8Oe30zjUO2Kz/t8qF44nG7VoOVz9uJmN5zN90JpOi7rOQkt7xBwEO
-# OYTIqt8mzdSSHZZPHCjlaDXMnBh2HGTTPocpOYaOPMU3OvnI0zElwQCtD7sGkSo5
-# BL9Vo77iOf97H0lnH6stlRj2zpQg08tTglJyicwr0AYiHIZzbRuiaiPPe45lxjOu
-# U/kf4JyTSkINtDi1ysb57/U3mS4oc0wC1cmdAAdvuB9+F/R9sp7WOxOskIG9w/IO
-# PhNA4oy+ajAU2dUg4HpedAkzJV5mRmvpHPFyMP8r5o/Ui/BI8RGgu35ZlAE=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTE1MjEwMzQ1WjAvBgkqhkiG
+# 9w0BCQQxIgQg2Gs3iF+rqs1D12nwnG8LlRQaBb4/0OH+QCwKyHNpd3gwDQYJKoZI
+# hvcNAQEBBQAEggIAYAM1he0nQkbK1UPZogzmQKvNWIj7imKF8CAtUHU2XaldSWU2
+# Kiiu5CgAUNJY1fPhirusiV1RO7JPwi9sp537ydgpQoSEzIbajQDPs6d9PUoP/cXi
+# bueI3fVn0ZM3IO9N6lo31YgpiKWUzwaXbp6P5ec9f37GCe96NcJWbfRTfRrSGn3j
+# dI1CatnSH/oPndJ2dAjJ3JJolbuh1/PAtQ6KhZwjRkFp8KudsRqQX15OiXCS5SD/
+# LbcbG3+W9ELbPX4G2IcGjWrqtk8884k8StlzZWATLfJf7pI7G6JPMTF0RBxiCXo5
+# sqL5bujzk0o68aLrF+/aDNO/f7iUAA6TJyqwYik841ZhkIS0m29V3HlLaFuujObO
+# FS6Qr7p9wli4fNMovymH5D9TqKYshCykXGaYCcsjseLJD9/mqGTMOCZcG1IzfKIB
+# ZZZkPh3nHbjmGh/mTw9Bc7wDRfAhc3LUfFd3TMqcsVUmNDKCTe1ds1ct57Dbom2/
+# yT58KxbECIBM7GqOlviSO5VhQ86oQeiKPoXPAY3nSRYGOBqegQaE23xyyA6lTJ1/
+# h8TWg/U1mV07y2x08VKzTLj1FcC+D081QKkIlig8k8G9iyZHn/9yT3whvEACknoS
+# 89L3DzbV2yzm9nx+odt43V2WmxW52jlZv9lf/qze5zHpbXhCn+JZ71lfqMg=
 # SIG # End signature block

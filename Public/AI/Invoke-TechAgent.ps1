@@ -2416,6 +2416,8 @@ finally {
                 toolNames              = [System.Collections.Generic.List[string]]::new()
                 processExited          = $false
                 exitCode               = -1
+                startupSignalObserved  = $false
+                startupObservedUtc     = $null
             }
 
             # Read stdout/stderr incrementally so iteration status can advance while waiting.
@@ -2438,6 +2440,8 @@ finally {
                                 $stdoutLines.Add([string]$line)
                                 Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
                             }
+                            $agentState['startupSignalObserved'] = $true
+                            if ($null -eq $agentState['startupObservedUtc']) { $agentState['startupObservedUtc'] = [DateTime]::UtcNow }
                             $streamReadState['stdoutReadTask'] = $agentProc.StandardOutput.ReadLineAsync()
                         }
                         else {
@@ -2454,6 +2458,8 @@ finally {
                             if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
                                 $stderrLines.Add([string]$line)
                             }
+                            $agentState['startupSignalObserved'] = $true
+                            if ($null -eq $agentState['startupObservedUtc']) { $agentState['startupObservedUtc'] = [DateTime]::UtcNow }
                             $streamReadState['stderrReadTask'] = $agentProc.StandardError.ReadLineAsync()
                         }
                         else {
@@ -2489,6 +2495,30 @@ finally {
                     Message = { param($obj, $status) "Tech agent failed with exit code {0}." -f $obj['exitCode'] }
                     Return  = $true
                 }
+            }
+
+            $startupTimeoutSeconds = [Math]::Min(120, [Math]::Max(20, [Math]::Floor($waitTimeoutSeconds * 0.10)))
+            $startupWaitStartedUtc = [DateTime]::UtcNow
+            Write-Log -Level Info -Message ("`nTechAgent startup: launched process pid={0} runId={1}; waiting up to {2}s for the first AgentCore/run-loop signal." -f $agentProc.Id, $runtimeRunId, $startupTimeoutSeconds)
+            $startupSignalObserved = $false
+            while (-not $agentProc.HasExited -and ((Get-Date).ToUniversalTime() -lt $startupWaitStartedUtc.AddSeconds($startupTimeoutSeconds))) {
+                $pollState = & $pollScript
+                if ($null -ne $pollState -and [bool]$pollState['startupSignalObserved']) {
+                    $startupSignalObserved = $true
+                    $startupObservedUtc = [DateTime]::UtcNow
+                    $startupLatency = [Math]::Round(($startupObservedUtc - $startupWaitStartedUtc).TotalSeconds, 2)
+                    Write-Log -Level Info -Message ("TechAgent startup: first AgentCore/run-loop signal observed after {0}s (pid={1}, runId={2})." -f $startupLatency, $agentProc.Id, $runtimeRunId)
+                    break
+                }
+
+                Start-Sleep -Milliseconds 250
+            }
+
+            if (-not $startupSignalObserved) {
+                $startupMessage = ("TechAgent startup timed out after {0}s without the first AgentCore/run-loop signal or output (pid={1}, runId={2})." -f $startupTimeoutSeconds, $agentProc.Id, $runtimeRunId)
+                Write-Log -Level Error -Message $startupMessage
+                try { if (-not $agentProc.HasExited) { $agentProc.Kill() } } catch { }
+                throw $startupMessage
             }
 
             # Use internal wait loop first; if it fails, fall back to simple process wait.
@@ -2563,6 +2593,8 @@ finally {
                             $stdoutLines.Add([string]$line)
                             Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
                         }
+                        $agentState['startupSignalObserved'] = $true
+                        if ($null -eq $agentState['startupObservedUtc']) { $agentState['startupObservedUtc'] = [DateTime]::UtcNow }
                         $streamReadState['stdoutReadTask'] = $agentProc.StandardOutput.ReadLineAsync()
                     }
                     else {
@@ -2579,6 +2611,8 @@ finally {
                         if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
                             $stderrLines.Add([string]$line)
                         }
+                        $agentState['startupSignalObserved'] = $true
+                        if ($null -eq $agentState['startupObservedUtc']) { $agentState['startupObservedUtc'] = [DateTime]::UtcNow }
                         $streamReadState['stderrReadTask'] = $agentProc.StandardError.ReadLineAsync()
                     }
                     else {
@@ -2778,8 +2812,8 @@ finally {
         $capturedStdOut = $message
         $markdownResponseLength = $message.Length
         if ([string]::IsNullOrWhiteSpace($message)) {
-            $message = 'Tech agent completed with no output.'
-            $markdownResponseLength = $message.Length
+            $message = ''
+            $markdownResponseLength = 0
         }
 
         if (Test-Path -LiteralPath $runtimeStatusPath -PathType Leaf) {
@@ -2799,7 +2833,7 @@ finally {
 
         $runtimeTerminalCode = ''
 
-        $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore -Mode $resolvedExecutionMode
+        $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore -Mode $resolvedExecutionMode -ToolTrace @($markdownToolTrace) -RagUsed $markdownRagUsed
         $markdownPostflightAchieved = [bool]$postflightAssessment.Achieved
         $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) { '' } else { [string]$postflightAssessment.Reason }
         if (-not $StrictPromptPreflight.IsPresent -and -not $postflightAssessment.Achieved) {
@@ -2914,7 +2948,7 @@ finally {
                 $capturedStdOut = $message
                 $markdownResponseLength = $message.Length
 
-                $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore -Mode $resolvedExecutionMode
+                $postflightAssessment = Test-TTAgentPostflightGoal -PromptText $Prompt -ResponseText $message -PreflightScore $preflightScore -Mode $resolvedExecutionMode -ToolTrace @($markdownToolTrace) -RagUsed $markdownRagUsed
                 $markdownPostflightAchieved = [bool]$postflightAssessment.Achieved
                 $markdownPostflightReason = if ([string]::IsNullOrWhiteSpace($postflightAssessment.Reason)) { '' } else { [string]$postflightAssessment.Reason }
 
@@ -3043,8 +3077,8 @@ finally {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAaUFFzFBei+bhr
-# sQ1PZSnHtQCY78FTAJ4jeQwaLDGuXKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB8xhUuLdWMEQIt
+# zDUJ+imisARqD8agbQVqMXqH8v7kS6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3221,31 +3255,31 @@ finally {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBT
-# Rp53bnxIi2dEO+EAetC2X136JVWTx2sDX13pbO+gGTANBgkqhkiG9w0BAQEFAASC
-# AYAoIPyRt+uWCRVCv83Xvdz4gVr83JTCjPSoytbsvpkEIG790nMplcI8ygcn+DSS
-# Jt52MdkFL6tqygU+AXSRAI6VwwykqV9vhjBDCu14KSozVSdV+ss1pLt3fdSnEF3T
-# hdOGBQsr5/XnXJ+zqaGm1u2nfHDGlROln7Si5jFqwjJlzCzU6Ja3FDlKa/gv+yEb
-# lSSV9j93VAmK65y1Vk9au+j0LhWzGBYLYeni/QS8klZk0x3ccZVexcS0O9b9H8X4
-# l/JX8zTCKc7c90ZoKpeVM936SN6jtXmtrHvNLRvTekYbKv7rVoT6FlHTdjew36ES
-# HbCbtVyls0zNarHC2TuW36UpXtZu48qSHsb2PQSMJRDnjBY6XOFfa8RtFp1qZSNN
-# YbzCztLuI5VaWsi0D3edndtZS9HjuB3GbPzIjWvF6u2qnxZprdihOgrX+cKHH3fw
-# qKoFRbf6IMzjnqXkxEVHa84uVJ/F+BKwPPOaCZ0aoZSzPbAH3TjV4eI+gDOkABNY
-# 1iuhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0
+# 3QgAxWMt21C3eqSqQChobLrdk2xW3twNH/fOEWNsHDANBgkqhkiG9w0BAQEFAASC
+# AYCP4fdYnS6K1Y1dq8XYFKHGA5AwP0E+ENaci/rasP5PyHZDvXSXCaFQ+jF8HbH7
+# jFmYQOepmj7onF6WwE7WK0PqKDM8kbfjfW1YJwXQQ+SRipswmVv2N3sBMdMxIYrC
+# zI0dbJmkwJJbAAiaERcSt1hknjTKzDSWqpLv8fXzJSi3TTOyyW3YpbDv3b1i0o0Y
+# bIZ+0rgNRA81PQcvg4WSHw3KgYUkz26sRl3XLAV+nD8ehnQhxszANkNv0GqVh8Gq
+# WfMm4VQeHbwbt9P4OsUh6N4IdTnI+E0PPYc0Wu6xz7Umv7ySJ4RGUlXJ4fbsa4Ia
+# jQZrI9GCz317jfsNDOrfV2hZbs11rYW+Fsos8lKtk+k+wBAbkkIM1FAIQecm0Wi2
+# QVko64OVvmPQ1ncI5HbmW4VBKlr5ijqorzZ0Hofd6i0FbPADAPgNSCowfDgx+8YF
+# HQndNPxMJy+G3wew9xgE5jPn0Qg6NaSefKs+NM3afw9jlLnWRO+aq+zA6PnvHI+m
+# Ai+hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTEwMDMxMjAyWjAvBgkqhkiG
-# 9w0BCQQxIgQg3h6u1STNv9gA6/YFtuI/xl/n5qbB2C9M09346Gpy8r8wDQYJKoZI
-# hvcNAQEBBQAEggIAFPaz0gJBFJBNFleBStBMWf5Gec4AttsMGCBaNfC98vJFrPBX
-# IlgscqVdC3fMyCP6e3HVMZwao0zsc3w5luGas9LvYuQUxuNLOSq7WqAFBfkBm5uf
-# Ef1eTS4M0eGYSzZCKwiRPTuyoh74vuUoXAww7IabaR3YTn/i/PEidReZw1bl6wdQ
-# PiHJtAV37WosOVP1CaNguoF/iroUaIIXjfpdcQ3pImNcrm9+LHO8hVPMTYkfH2bd
-# HZEX4yTvSnFeMtbVxHV1XgI5vtvSQlyQOfff8tAKLSwApYy74wpp6bKAROWbNYm0
-# P+RrZyllnVEQtWJn8DbfjCHE7xdpFd+iDbrQs6GeDyVvgVWSscDrr7D2och043eP
-# uTEn2OmP4VUtqyBmUAM6W4cgMYRvY78kn6Uo8IlfxuhnrcZGcOtO+gqWzLDj/yoS
-# xx8N/ZZW7CLvsNrhV4NPLCquIkZW1h3TiJeNS1quklIlSIzOWJRAf1gM8pKqct0W
-# H57ixQmZWBWX9Gws5Oadub7if7mnFiyXLbuWGrJCxhpDTpmXilhyy/fUMq3v4+hO
-# fmvJ1/tgVJyW6KkDY3geCiPQX81D/5SPa8u+IwPasOwa4qhA78bAdVldUSYb2pOa
-# B3qJkafIK3zhesxvej//wnwjyx8Rc7VYB0PzESLzF5UP5llCQQw4ZYui0N8=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTE1MjEwMzQ4WjAvBgkqhkiG
+# 9w0BCQQxIgQg5np9By+txq1CtnKuOO5dqbrZXQbWaJjdHK/CGDSu338wDQYJKoZI
+# hvcNAQEBBQAEggIAdFOV0/DWG1+WL8wDJfNErPLQ1WsuZxbv2Zj8Y85QAC6dUKW4
+# da4PZjcT9nBkP6FiZOM2ccsRM8brkNUVVMevPuOIMGduk0gh44jWrUOU9Sh3rzZe
+# Krb5Re+kSXY38t/dZkruviipWF6YljB0Q2M6bpdw7ev+eGuz+L4ZnoitbOhz8IOV
+# n7OuUQF0TSRmCNf2qXagaM48qLo5n5SgnrukFyimUGBZ7J0DKlnh08H88yiHSy+C
+# uiyGzFzq4DCIyD8o35f8dC0Wz+WzX3aCyKZZu1cPk9/89w0CSv78Jp1LUJuu+yvD
+# 13DOyvnvc7IutbuvlL5Vqw8hVx+7+16ni9PfRPtBbzrykJUUVdUaIa9xp5Qdh6hc
+# pfSDFGM/6r/NRRD2AQr8cII79nHNXBC2DKmvrmJXmT+D+5q+WI2/XJpinulUMifU
+# Gl8QrBagvhFrl2Vs6p5+REinnGE2XTHRJTeo2vMKk4N3aUx2NPDKXutuivHYhsUT
+# piWwXOwnevA6RmO9zOyi7OLxTYLlgdqgg4sDXhr85NQRaZ/+1JOAaMDL5kbt9UNF
+# 5Qd5UCTarKZYSTLnF1r82tvsCX1Egu5oS9s50ui/rSuZSlla7PoKs4Rz0c7BuauE
+# OoCPPBGvZ/WtbPh95BpN2w4xD0YSSZEJvtgkRzJ66Fp076EtoaPdm2kEAsM=
 # SIG # End signature block
