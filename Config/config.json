@@ -461,7 +461,7 @@
           },
           {
             "name": "git",
-            "enabled": false,
+            "enabled": true,
             "transport": "Stdio",
             "command": "uvx",
             "arguments": ["mcp-server-git"],
