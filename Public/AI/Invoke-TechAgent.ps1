@@ -353,12 +353,6 @@ function Invoke-TechAgent {
 
     $resolvedMaxIterations = [Math]::Max(1, [Math]::Min(500, $resolvedMaxIterations))
 
-    $resolvedWriteDirectorySettings = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
-    if ($PSBoundParameters.ContainsKey('WriteDirectory') -and $resolvedWriteDirectorySettings.AllowedRoots.Count -gt 0) {
-        $env:TT_AGENT_FILESYSTEM_ROOT = $resolvedWriteDirectorySettings.FilesystemRoot
-        $env:TT_AGENT_ALLOWED_PATH_ROOTS = $resolvedWriteDirectorySettings.EnvironmentRoots
-    }
-
     [int]$resolvedOrchestratorRunDeadlineSeconds = 600
     $orchestratorRunDeadlineValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'orchestratorRunDeadlineSeconds'
     if ($null -ne $orchestratorRunDeadlineValue) {
@@ -1281,7 +1275,7 @@ Hard requirement:
                 }
 
                 try {
-                    $normalizedRoot = [System.IO.Path]::GetFullPath($rootText.Trim())
+                    $normalizedRoot = Resolve-TTAgentPathRoot -Path $rootText
                 }
                 catch {
                     throw ("Invalid settings.agent.allowedPathRoots entry '{0}': {1}" -f $rootText, $_.Exception.Message)
@@ -1358,8 +1352,7 @@ Hard requirement:
                 }
 
                 if ($serverClone.name -eq 'filesystem') {
-                    $filesystemWriteSettings = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
-                    $serverClone.arguments = $filesystemWriteSettings.Arguments
+                    $serverClone = Compose-TTAgentFilesystemMcpServer -Server $serverClone -AuthorizedPathRoots $allowedPathRoots -WriteDirectory $WriteDirectory -PolicyStartupMode $resolvedPolicyStartupMode
                 }
 
                 $normalizedMcpServersForChild += $serverClone
@@ -2052,13 +2045,33 @@ finally {
             foreach ($root in ($configuredAllowedRootsRaw -split [System.IO.Path]::PathSeparator)) {
                 & $addAllowedRoot -Candidate $root
             }
+
+            $localDataCandidate = $env:TT_LocalDataRoot
+            $moduleCandidate = $env:TT_ModuleRoot
+            if (-not [string]::IsNullOrWhiteSpace($localDataCandidate) -and -not [string]::IsNullOrWhiteSpace($moduleCandidate)) {
+                try {
+                    $localDataFull = [System.IO.Path]::GetFullPath($localDataCandidate)
+                    $moduleFull = [System.IO.Path]::GetFullPath($moduleCandidate)
+                    $hasOnlyLegacyLocalDataDefault = $allowedRoots.Count -eq 1 -and
+                        [string]::Equals($allowedRoots[0], $localDataFull, [System.StringComparison]::OrdinalIgnoreCase)
+                    if ($hasOnlyLegacyLocalDataDefault -and -not [string]::Equals($localDataFull, $moduleFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        & $addAllowedRoot -Candidate $moduleFull
+                    }
+                }
+                catch {
+                    # Preserve configured roots if legacy-default promotion cannot be evaluated.
+                }
+            }
         }
         else {
             $defaultAllowedRoots = @()
-            foreach ($candidate in @($env:TT_ModuleRoot, $env:TT_Home, (Get-Location).Path)) {
+            foreach ($candidate in @($env:TT_LocalDataRoot, $env:TT_ModuleRoot)) {
                 if (-not [string]::IsNullOrWhiteSpace($candidate)) {
                     $defaultAllowedRoots += $candidate
                 }
+            }
+            if ($defaultAllowedRoots.Count -eq 0) {
+                $defaultAllowedRoots += (Get-Location).Path
             }
 
             foreach ($root in ($defaultAllowedRoots | Select-Object -Unique)) {
@@ -2078,9 +2091,13 @@ finally {
             }
         }
 
-        $effectiveWriteDirectoryPolicy = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
-        foreach ($root in $effectiveWriteDirectoryPolicy.AllowedRoots) {
-            & $addAllowedRoot -Candidate $root
+        $filesystemChildAuthorizedRoots = @($allowedPathRoots)
+        $hasExplicitFilesystemWriteRoot = $PSBoundParameters.ContainsKey('WriteDirectory') -or -not [string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)
+        if ($hasExplicitFilesystemWriteRoot) {
+            $effectiveWriteDirectoryPolicy = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory -AuthorizedPathRoots $filesystemChildAuthorizedRoots
+        }
+        else {
+            $effectiveWriteDirectoryPolicy = [pscustomobject]@{ AllowedRoots = @(); FilesystemRoot = $null }
         }
 
         if ($allowedRoots.Count -gt 0) {
@@ -2092,6 +2109,7 @@ finally {
 
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
         $startInfo.Environment['TT_LocalDataRoot'] = $script:TT.LocalDataRoot
+        $startInfo.Environment['TT_ModuleRoot'] = $script:TT.ModuleRoot
         $startInfo.Environment['TT_AGENT_RUNTIME_RUN_ID'] = $runtimeRunId
         $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
         $startInfo.Environment['TT_AGENT_LLM_TEMPERATURE'] = [string]$qualitySettings.Temperature
@@ -2501,8 +2519,77 @@ finally {
             $startupWaitStartedUtc = [DateTime]::UtcNow
             Write-Log -Level Info -Message ("`nTechAgent startup: launched process pid={0} runId={1}; waiting up to {2}s for the first AgentCore/run-loop signal." -f $agentProc.Id, $runtimeRunId, $startupTimeoutSeconds)
             $startupSignalObserved = $false
-            while (-not $agentProc.HasExited -and ((Get-Date).ToUniversalTime() -lt $startupWaitStartedUtc.AddSeconds($startupTimeoutSeconds))) {
+            $startupProcessExited = $false
+            $startupExitCode = -1
+            $drainStartupStreams = {
+                try {
+                    $agentProc.WaitForExit(5000)
+                }
+                catch {
+                    # The process may have already exited; continue with the line tasks.
+                }
+
+                while ($null -ne $streamReadState['stdoutReadTask'] -or $null -ne $streamReadState['stderrReadTask']) {
+                    $drained = $false
+
+                    if ($null -ne $streamReadState['stdoutReadTask']) {
+                        $stdoutTask = $streamReadState['stdoutReadTask']
+                        if ($stdoutTask.IsCompleted) {
+                            $line = $stdoutTask.GetAwaiter().GetResult()
+                            if ($null -ne $line) {
+                                if (-not (& $processAgentStdOutLine -line ([string]$line))) {
+                                    $stdoutLines.Add([string]$line)
+                                    Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                                }
+                                $agentState['startupSignalObserved'] = $true
+                                if ($null -eq $agentState['startupObservedUtc']) { $agentState['startupObservedUtc'] = [DateTime]::UtcNow }
+                                $streamReadState['stdoutReadTask'] = $agentProc.StandardOutput.ReadLineAsync()
+                            }
+                            else {
+                                $streamReadState['stdoutReadTask'] = $null
+                            }
+                            $drained = $true
+                        }
+                    }
+
+                    if ($null -ne $streamReadState['stderrReadTask']) {
+                        $stderrTask = $streamReadState['stderrReadTask']
+                        if ($stderrTask.IsCompleted) {
+                            $line = $stderrTask.GetAwaiter().GetResult()
+                            if ($null -ne $line) {
+                                Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                                if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
+                                    $stderrLines.Add([string]$line)
+                                }
+                                $agentState['startupSignalObserved'] = $true
+                                if ($null -eq $agentState['startupObservedUtc']) { $agentState['startupObservedUtc'] = [DateTime]::UtcNow }
+                                $streamReadState['stderrReadTask'] = $agentProc.StandardError.ReadLineAsync()
+                            }
+                            else {
+                                $streamReadState['stderrReadTask'] = $null
+                            }
+                            $drained = $true
+                        }
+                    }
+
+                    if (-not $drained) {
+                        break
+                    }
+                }
+            }
+            while ((Get-Date).ToUniversalTime() -lt $startupWaitStartedUtc.AddSeconds($startupTimeoutSeconds)) {
                 $pollState = & $pollScript
+                if ($null -ne $pollState) {
+                    $startupProcessExited = [bool]$pollState['processExited']
+                    if ($startupProcessExited) {
+                        $startupExitCode = [int]$pollState['exitCode']
+                        & $drainStartupStreams
+                        if ([bool]$agentState['startupSignalObserved']) {
+                            $startupSignalObserved = $true
+                        }
+                        break
+                    }
+                }
                 if ($null -ne $pollState -and [bool]$pollState['startupSignalObserved']) {
                     $startupSignalObserved = $true
                     $startupObservedUtc = [DateTime]::UtcNow
@@ -2512,6 +2599,21 @@ finally {
                 }
 
                 Start-Sleep -Milliseconds 250
+            }
+
+            if ($startupProcessExited -and -not $startupSignalObserved) {
+                $startupStdOut = ($stdoutLines -join [Environment]::NewLine).Trim()
+                $startupStdErr = ($stderrLines -join [Environment]::NewLine).Trim()
+                $startupOutputDetail = ''
+                if (-not [string]::IsNullOrWhiteSpace($startupStdOut)) {
+                    $startupOutputDetail += ("; stdout={0}" -f $startupStdOut)
+                }
+                if (-not [string]::IsNullOrWhiteSpace($startupStdErr)) {
+                    $startupOutputDetail += ("; stderr={0}" -f $startupStdErr)
+                }
+                $startupExitMessage = ("Tech agent exited during startup with exit code {0} before the first AgentCore/run-loop signal or output (pid={1}, runId={2}{3})." -f $startupExitCode, $agentProc.Id, $runtimeRunId, $startupOutputDetail)
+                Write-Log -Level Error -Message $startupExitMessage
+                throw $startupExitMessage
             }
 
             if (-not $startupSignalObserved) {
@@ -3074,11 +3176,13 @@ finally {
 
     }
 }
+
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB8xhUuLdWMEQIt
-# zDUJ+imisARqD8agbQVqMXqH8v7kS6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAd2RHE2dh3I63C
+# LCZQn6V1Aql3BhD2NZMOhZMo9AnmkqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3255,31 +3359,31 @@ finally {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0
-# 3QgAxWMt21C3eqSqQChobLrdk2xW3twNH/fOEWNsHDANBgkqhkiG9w0BAQEFAASC
-# AYCP4fdYnS6K1Y1dq8XYFKHGA5AwP0E+ENaci/rasP5PyHZDvXSXCaFQ+jF8HbH7
-# jFmYQOepmj7onF6WwE7WK0PqKDM8kbfjfW1YJwXQQ+SRipswmVv2N3sBMdMxIYrC
-# zI0dbJmkwJJbAAiaERcSt1hknjTKzDSWqpLv8fXzJSi3TTOyyW3YpbDv3b1i0o0Y
-# bIZ+0rgNRA81PQcvg4WSHw3KgYUkz26sRl3XLAV+nD8ehnQhxszANkNv0GqVh8Gq
-# WfMm4VQeHbwbt9P4OsUh6N4IdTnI+E0PPYc0Wu6xz7Umv7ySJ4RGUlXJ4fbsa4Ia
-# jQZrI9GCz317jfsNDOrfV2hZbs11rYW+Fsos8lKtk+k+wBAbkkIM1FAIQecm0Wi2
-# QVko64OVvmPQ1ncI5HbmW4VBKlr5ijqorzZ0Hofd6i0FbPADAPgNSCowfDgx+8YF
-# HQndNPxMJy+G3wew9xgE5jPn0Qg6NaSefKs+NM3afw9jlLnWRO+aq+zA6PnvHI+m
-# Ai+hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBX
+# 1zVFDMqVlAft6D8SJt3gchX6mA82OnWplD6a1a5qMDANBgkqhkiG9w0BAQEFAASC
+# AYBNRIMjMyZORTZYwEKlNSxXIu+kRjraz/J4Nz8qGr6H9z2hUkcZ8dBy6l/KvXiX
+# +yaGrhuAclqajJhv5dL2dc/eSJ0WsyGZAjCyNfis2GRsy7iBVONTFQWdRd1EtEHP
+# 9IuWvcdJbw5731vZMqsCw5M2Y1V7mPczvY0WX9161jbdtmaMZDuORylduMCIThL1
+# qU+lUNyU34n0kZNEO0XXcot38/CUPMvtKEBA37VE2l4mEd3/xsT4ZbzI0v9CVPlM
+# SH/bwxMkcGvtFNCbs1wQLYN0rvBg3cHhlwH156XJdly9csomJ2JUaZ+99MT7A67v
+# /r2tFgE4gsBC1RbRGpKedw6n9FkGITCq3OeHYMo1pEysh0in+Tnj/7oFF+uYZA65
+# RYOfNGjRavIpVZwFWSc+24WSFbbVcNiDW6YqP83yB7zx5qHKHsO376oQ1MWFblfK
+# zfbq/fyxo7HVtmO1vGiesk3OyFeNuM4bYPWF8C17ybfoXR4+BAfD2ZYaAiEHfTX1
+# NbyhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTE1MjEwMzQ4WjAvBgkqhkiG
-# 9w0BCQQxIgQg5np9By+txq1CtnKuOO5dqbrZXQbWaJjdHK/CGDSu338wDQYJKoZI
-# hvcNAQEBBQAEggIAdFOV0/DWG1+WL8wDJfNErPLQ1WsuZxbv2Zj8Y85QAC6dUKW4
-# da4PZjcT9nBkP6FiZOM2ccsRM8brkNUVVMevPuOIMGduk0gh44jWrUOU9Sh3rzZe
-# Krb5Re+kSXY38t/dZkruviipWF6YljB0Q2M6bpdw7ev+eGuz+L4ZnoitbOhz8IOV
-# n7OuUQF0TSRmCNf2qXagaM48qLo5n5SgnrukFyimUGBZ7J0DKlnh08H88yiHSy+C
-# uiyGzFzq4DCIyD8o35f8dC0Wz+WzX3aCyKZZu1cPk9/89w0CSv78Jp1LUJuu+yvD
-# 13DOyvnvc7IutbuvlL5Vqw8hVx+7+16ni9PfRPtBbzrykJUUVdUaIa9xp5Qdh6hc
-# pfSDFGM/6r/NRRD2AQr8cII79nHNXBC2DKmvrmJXmT+D+5q+WI2/XJpinulUMifU
-# Gl8QrBagvhFrl2Vs6p5+REinnGE2XTHRJTeo2vMKk4N3aUx2NPDKXutuivHYhsUT
-# piWwXOwnevA6RmO9zOyi7OLxTYLlgdqgg4sDXhr85NQRaZ/+1JOAaMDL5kbt9UNF
-# 5Qd5UCTarKZYSTLnF1r82tvsCX1Egu5oS9s50ui/rSuZSlla7PoKs4Rz0c7BuauE
-# OoCPPBGvZ/WtbPh95BpN2w4xD0YSSZEJvtgkRzJ66Fp076EtoaPdm2kEAsM=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMDU0ODU2WjAvBgkqhkiG
+# 9w0BCQQxIgQgnIQiqMh0ec/rtOFqJcSGbt+HYX8PmBWs/1anuIZ0MogwDQYJKoZI
+# hvcNAQEBBQAEggIAKM34XkbpNQnQaDtaPDU00uQs1SFNxnphtdikDFMZ0fTpNyZU
+# lqSoPpRYvfRS1fWB1HmWUazJ56GBxoxzdtrjTQzDyaPcbnUULmMj2/Zv7v4U8QPc
+# 5n17aBPUgeL3LuF55HJwvyyKXJyaIW5dRIszcVkp386wnD7pMTqbdG81+PJoZI2C
+# AS5plNgsQMfaYvGwa8wzUTvk7O54wHbHibOnfRjCxn1MWiErm+xnGEZTfPW4vwwF
+# sGp21hxXoQkrJ8TtputPIYC8z+LBEnedOCHHlGzPhQZ+9fF4CPU/9ZfpcFL8Lzpq
+# g4OzabDZ6dWi2hMQB1JYXNQ2uS+wcZ8aRWz35OmROanYBwO2P9BgXAKs+oQ99BKs
+# zLH4UeVrwtDNHUd83HHejfKF0lkMhKmSw8jXxdPybkAeI3hPLis5f26gUI27SXZO
+# 5lwQr4Fuz9FRYA4p894zb4kFfLp8IvWzd/A445Iodaan0zzHHJz9rEV9nFxgsJBA
+# RTz60yDcKNE8QfsT1Mey0Hq3l/xqsI8EhhfzScSJ/MFkNKIte9gaVk+98YFE0vwv
+# qYX0fzokAqyhT/QD/lyAuVadm3zLkrytMrtvcxESL0muCtAXmkgxLBKpP+sEuDhA
+# UN5ONsGOgMqzXnd3do6yoPh93CcrGS0EJBHwrDy01COpjBGD7Et1NQAC9UA=
 # SIG # End signature block

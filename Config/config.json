@@ -198,7 +198,7 @@
         "embeddingDimension": null
       },
       "policyStartupMode": "Observe",
-      "allowedPathRoots": ["%TT_LocalDataRoot%"],
+      "allowedPathRoots": ["%TT_LocalDataRoot%", "%TT_ModuleRoot%"],
       "provider": "ollama",
       "model": "qwen3.5:9b",
       "executionMode": "execute",
