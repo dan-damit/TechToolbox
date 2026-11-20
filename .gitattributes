@@ -1,2 +1,42 @@
-# Auto detect text files and perform LF normalization
+# ----------------------------------------
+# Text normalization
+# ----------------------------------------
+
 * text=auto
+
+# Windows / PowerShell
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# Unix scripts
+*.sh text eol=lf
+
+# Source / configuration
+*.cs     text
+*.csproj text
+*.sln    text
+*.json   text
+*.jsonc  text
+*.xml    text
+*.yml    text
+*.yaml   text
+*.md     text
+*.txt    text
+
+# ----------------------------------------
+# Binary files
+# ----------------------------------------
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.7z   binary
+*.dll  binary
+*.exe  binary
