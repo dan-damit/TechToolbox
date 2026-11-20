@@ -353,12 +353,6 @@ function Invoke-TechAgent {
 
     $resolvedMaxIterations = [Math]::Max(1, [Math]::Min(500, $resolvedMaxIterations))
 
-    $resolvedWriteDirectorySettings = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
-    if ($PSBoundParameters.ContainsKey('WriteDirectory') -and $resolvedWriteDirectorySettings.AllowedRoots.Count -gt 0) {
-        $env:TT_AGENT_FILESYSTEM_ROOT = $resolvedWriteDirectorySettings.FilesystemRoot
-        $env:TT_AGENT_ALLOWED_PATH_ROOTS = $resolvedWriteDirectorySettings.EnvironmentRoots
-    }
-
     [int]$resolvedOrchestratorRunDeadlineSeconds = 600
     $orchestratorRunDeadlineValue = Get-TTAgentConfigValue -ConfigObject $cfg -KeyName 'orchestratorRunDeadlineSeconds'
     if ($null -ne $orchestratorRunDeadlineValue) {
@@ -1281,7 +1275,7 @@ Hard requirement:
                 }
 
                 try {
-                    $normalizedRoot = [System.IO.Path]::GetFullPath($rootText.Trim())
+                    $normalizedRoot = Resolve-TTAgentPathRoot -Path $rootText
                 }
                 catch {
                     throw ("Invalid settings.agent.allowedPathRoots entry '{0}': {1}" -f $rootText, $_.Exception.Message)
@@ -1358,8 +1352,7 @@ Hard requirement:
                 }
 
                 if ($serverClone.name -eq 'filesystem') {
-                    $filesystemWriteSettings = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
-                    $serverClone.arguments = $filesystemWriteSettings.Arguments
+                    $serverClone = Compose-TTAgentFilesystemMcpServer -Server $serverClone -AuthorizedPathRoots $allowedPathRoots -WriteDirectory $WriteDirectory -PolicyStartupMode $resolvedPolicyStartupMode
                 }
 
                 $normalizedMcpServersForChild += $serverClone
@@ -2052,13 +2045,33 @@ finally {
             foreach ($root in ($configuredAllowedRootsRaw -split [System.IO.Path]::PathSeparator)) {
                 & $addAllowedRoot -Candidate $root
             }
+
+            $localDataCandidate = $env:TT_LocalDataRoot
+            $moduleCandidate = $env:TT_ModuleRoot
+            if (-not [string]::IsNullOrWhiteSpace($localDataCandidate) -and -not [string]::IsNullOrWhiteSpace($moduleCandidate)) {
+                try {
+                    $localDataFull = [System.IO.Path]::GetFullPath($localDataCandidate)
+                    $moduleFull = [System.IO.Path]::GetFullPath($moduleCandidate)
+                    $hasOnlyLegacyLocalDataDefault = $allowedRoots.Count -eq 1 -and
+                        [string]::Equals($allowedRoots[0], $localDataFull, [System.StringComparison]::OrdinalIgnoreCase)
+                    if ($hasOnlyLegacyLocalDataDefault -and -not [string]::Equals($localDataFull, $moduleFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        & $addAllowedRoot -Candidate $moduleFull
+                    }
+                }
+                catch {
+                    # Preserve configured roots if legacy-default promotion cannot be evaluated.
+                }
+            }
         }
         else {
             $defaultAllowedRoots = @()
-            foreach ($candidate in @($env:TT_ModuleRoot, $env:TT_Home, (Get-Location).Path)) {
+            foreach ($candidate in @($env:TT_LocalDataRoot, $env:TT_ModuleRoot)) {
                 if (-not [string]::IsNullOrWhiteSpace($candidate)) {
                     $defaultAllowedRoots += $candidate
                 }
+            }
+            if ($defaultAllowedRoots.Count -eq 0) {
+                $defaultAllowedRoots += (Get-Location).Path
             }
 
             foreach ($root in ($defaultAllowedRoots | Select-Object -Unique)) {
@@ -2078,9 +2091,13 @@ finally {
             }
         }
 
-        $effectiveWriteDirectoryPolicy = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory
-        foreach ($root in $effectiveWriteDirectoryPolicy.AllowedRoots) {
-            & $addAllowedRoot -Candidate $root
+        $filesystemChildAuthorizedRoots = @($allowedPathRoots)
+        $hasExplicitFilesystemWriteRoot = $PSBoundParameters.ContainsKey('WriteDirectory') -or -not [string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)
+        if ($hasExplicitFilesystemWriteRoot) {
+            $effectiveWriteDirectoryPolicy = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory -AuthorizedPathRoots $filesystemChildAuthorizedRoots
+        }
+        else {
+            $effectiveWriteDirectoryPolicy = [pscustomobject]@{ AllowedRoots = @(); FilesystemRoot = $null }
         }
 
         if ($allowedRoots.Count -gt 0) {
@@ -2092,6 +2109,7 @@ finally {
 
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
         $startInfo.Environment['TT_LocalDataRoot'] = $script:TT.LocalDataRoot
+        $startInfo.Environment['TT_ModuleRoot'] = $script:TT.ModuleRoot
         $startInfo.Environment['TT_AGENT_RUNTIME_RUN_ID'] = $runtimeRunId
         $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
         $startInfo.Environment['TT_AGENT_LLM_TEMPERATURE'] = [string]$qualitySettings.Temperature
@@ -3074,11 +3092,13 @@ finally {
 
     }
 }
+
+
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB8xhUuLdWMEQIt
-# zDUJ+imisARqD8agbQVqMXqH8v7kS6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWx9X1LDUqZGdn
+# bp1gnDX5UHXp8F0UP/eMkCFNWiMwe6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3255,31 +3275,31 @@ finally {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCA0
-# 3QgAxWMt21C3eqSqQChobLrdk2xW3twNH/fOEWNsHDANBgkqhkiG9w0BAQEFAASC
-# AYCP4fdYnS6K1Y1dq8XYFKHGA5AwP0E+ENaci/rasP5PyHZDvXSXCaFQ+jF8HbH7
-# jFmYQOepmj7onF6WwE7WK0PqKDM8kbfjfW1YJwXQQ+SRipswmVv2N3sBMdMxIYrC
-# zI0dbJmkwJJbAAiaERcSt1hknjTKzDSWqpLv8fXzJSi3TTOyyW3YpbDv3b1i0o0Y
-# bIZ+0rgNRA81PQcvg4WSHw3KgYUkz26sRl3XLAV+nD8ehnQhxszANkNv0GqVh8Gq
-# WfMm4VQeHbwbt9P4OsUh6N4IdTnI+E0PPYc0Wu6xz7Umv7ySJ4RGUlXJ4fbsa4Ia
-# jQZrI9GCz317jfsNDOrfV2hZbs11rYW+Fsos8lKtk+k+wBAbkkIM1FAIQecm0Wi2
-# QVko64OVvmPQ1ncI5HbmW4VBKlr5ijqorzZ0Hofd6i0FbPADAPgNSCowfDgx+8YF
-# HQndNPxMJy+G3wew9xgE5jPn0Qg6NaSefKs+NM3afw9jlLnWRO+aq+zA6PnvHI+m
-# Ai+hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAZ
+# 1kYoB8KQ5xXcgFa/ZjnB8axAuaTJBPjMCYsb3Uz9gTANBgkqhkiG9w0BAQEFAASC
+# AYAcUe5lg8TmjHx2v0lo1O8rysqtv188ka+H4DKPB4zdzpPY4qqQVredLZY2HFp4
+# VcJF9WwH9BP2+N1iEOUJYJcldoGdLLniS/1DN98UBb0vziYA2psN/yvCq9Jpg5qw
+# 2UTnzPzrNhHOKGEpP3QfdH1iEDzgeJLURW7jkIaiuVPY7XGZjl5NhGSU5wJ++JPR
+# gg9bBauUGhOjTVXzKia1L3/2v5xb1aATmvNqe1n1xpRgFIkHLrGnewH8SdJ5QDa4
+# H8Ugon3g7h1GvbUQaXeGMPI3nvBtFLJ5lM51/Dv4wGkc6SjnW9CQLnA8W4viWXb/
+# MtOpDFUZd2BpjeqkxsHNkmV6OvWYd1o3kzA4bGwXGVpnXzHPSxb62NZycFxZhBGk
+# /fJdABk5UEsZvp8Aot1vKS86a1RoZgPhBe7FuQmtIXYvj+scH4SqRSdZ5sNGMqZh
+# 6PrPvzM7pXgRRUylMp3CMIC4HEQsopEX4tZncPfuPBO0w0p1ly7KVzyOot8EtOnB
+# 9YShggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTE1MjEwMzQ4WjAvBgkqhkiG
-# 9w0BCQQxIgQg5np9By+txq1CtnKuOO5dqbrZXQbWaJjdHK/CGDSu338wDQYJKoZI
-# hvcNAQEBBQAEggIAdFOV0/DWG1+WL8wDJfNErPLQ1WsuZxbv2Zj8Y85QAC6dUKW4
-# da4PZjcT9nBkP6FiZOM2ccsRM8brkNUVVMevPuOIMGduk0gh44jWrUOU9Sh3rzZe
-# Krb5Re+kSXY38t/dZkruviipWF6YljB0Q2M6bpdw7ev+eGuz+L4ZnoitbOhz8IOV
-# n7OuUQF0TSRmCNf2qXagaM48qLo5n5SgnrukFyimUGBZ7J0DKlnh08H88yiHSy+C
-# uiyGzFzq4DCIyD8o35f8dC0Wz+WzX3aCyKZZu1cPk9/89w0CSv78Jp1LUJuu+yvD
-# 13DOyvnvc7IutbuvlL5Vqw8hVx+7+16ni9PfRPtBbzrykJUUVdUaIa9xp5Qdh6hc
-# pfSDFGM/6r/NRRD2AQr8cII79nHNXBC2DKmvrmJXmT+D+5q+WI2/XJpinulUMifU
-# Gl8QrBagvhFrl2Vs6p5+REinnGE2XTHRJTeo2vMKk4N3aUx2NPDKXutuivHYhsUT
-# piWwXOwnevA6RmO9zOyi7OLxTYLlgdqgg4sDXhr85NQRaZ/+1JOAaMDL5kbt9UNF
-# 5Qd5UCTarKZYSTLnF1r82tvsCX1Egu5oS9s50ui/rSuZSlla7PoKs4Rz0c7BuauE
-# OoCPPBGvZ/WtbPh95BpN2w4xD0YSSZEJvtgkRzJ66Fp076EtoaPdm2kEAsM=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMDUzNzM3WjAvBgkqhkiG
+# 9w0BCQQxIgQgKPNE4RTGh/RtHBodUGqzXrjOrRI8uEPsJQ9TEBWKh3kwDQYJKoZI
+# hvcNAQEBBQAEggIAZhMmkN89v9FbPHZXqP0Gh23Y49z2m0eQ+qWAsQTuO7KtpY1j
+# V18C+TsuncW73ifZIUUEBVvp2s1nA3QTQaK80TKX2gIV7N+f1em8OWPjoTGgucCI
+# 9p2jl2tymjP1sMT3euk0dr4QfWRR7Iri/KP3BUvmnfC0GFR9AX/5cu89eqi52DF+
+# md/MoAr9dMm8LD/eW7PhnS6ZCciZFhnZzo8iMR5QkI8UhSZEpEkXE7VMsOGjznud
+# PBlyDRpzYUhs11aaFopwjfcKGyYb1DU+zbnrPKj671ZiU7DTUev9eaHe58qF5IM0
+# j9CKaU8T7lx4rzya+dx1HnbKOS2i0OqAq9J6nopBQLsJEhJxUB22mcO/4mJNoRAI
+# qRtE0lrs1dqBWLNHYSymdTwDMJ72TGOg9qrmLlHyVKyaROP7S8FXVhHuJppmiNUv
+# RQKvN/yfhAze6zjpEQL3Ly9uLL8DsZ9HSL2qLLHW4pRrsjsojetnazE284G+J/XH
+# wUiUnGat2VaMS39fotk9GhAxi282yDmI52KVoyRm6UxcJXZTMwPCpAgp6LR2GgBr
+# 7XRyuuDMEd1KFwHtMkqPbAGYDi0aH2YMMSK6vuf2fjY4xOcTUEIBQmh0+N+IonlU
+# juEzk/EB3rEgWFXCO5GQGLTMfAh0dMEqomFyB7pF6rNtcbF4UdRveXAT7Lk=
 # SIG # End signature block

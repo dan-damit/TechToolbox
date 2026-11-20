@@ -115,6 +115,8 @@ provides analysis without tool calls. Legacy `chat` maps to `analyze`.
 TechAgent provides host-side destructive-action approval: the operator may
 approve the presented action, approve destructive actions for the run, or deny.
 Keep configured MCP `allowedTools` and `settings.agent.allowedPathRoots` narrow.
+By default, checked-in `settings.agent.allowedPathRoots` resolves to
+`%TT_LocalDataRoot%` and `%TT_ModuleRoot%`.
 The checked-in `settings.agent.policyStartupMode` is `Observe`; do not treat it
 as a substitute for action approval or infer further behavior from its name.
 Pass non-interactive credentials via `-ToolCredential` or

@@ -13,7 +13,7 @@ Describe "TechToolbox Module" {
             $module | Should -Not -BeNullOrEmpty
         }
 
-        It "Should default agent filesystem and allowed-path roots to LocalDataRoot when no env override is set" {
+        It "Should default agent filesystem and allowed-path roots to LocalDataRoot and ModuleRoot when no env override is set" {
             $moduleRoot = $env:TT_ModuleRoot
             $moduleRoot | Should -Not -BeNullOrEmpty
 
@@ -21,15 +21,18 @@ Describe "TechToolbox Module" {
             $agentFilesystemRoot = $env:TT_AGENT_FILESYSTEM_ROOT
             $agentAllowedRoots = $env:TT_AGENT_ALLOWED_PATH_ROOTS
 
-            $agentFilesystemRoot | Should -Be $localDataRoot
+            ($agentFilesystemRoot -split [System.IO.Path]::PathSeparator) | Should -Contain $localDataRoot
+            ($agentFilesystemRoot -split [System.IO.Path]::PathSeparator) | Should -Contain $moduleRoot
             $agentAllowedRoots | Should -Not -BeNullOrEmpty
             ($agentAllowedRoots -split [System.IO.Path]::PathSeparator) | Should -Contain $localDataRoot
-            ($agentAllowedRoots -split [System.IO.Path]::PathSeparator) | Should -Not -Contain $moduleRoot
+            ($agentAllowedRoots -split [System.IO.Path]::PathSeparator) | Should -Contain $moduleRoot
         }
 
         It "Should honor a callsite WriteDirectory override for filesystem access" {
             InModuleScope TechToolbox {
-                $result = Resolve-TTAgentWriteDirectorySettings -WriteDirectory @('C:\Temp\Alpha', 'D:\Temp\Beta')
+                $result = Resolve-TTAgentWriteDirectorySettings `
+                    -AuthorizedPathRoots @('C:\Temp', 'D:\Temp') `
+                    -WriteDirectory @('C:\Temp\Alpha', 'D:\Temp\Beta')
                 $result.FilesystemRoot | Should -Be 'C:\Temp\Alpha'
                 $result.AllowedRoots | Should -Contain 'C:\Temp\Alpha'
                 $result.AllowedRoots | Should -Contain 'D:\Temp\Beta'
@@ -312,8 +315,8 @@ Describe "TechToolbox Module" {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCXfhplrF6ym3LC
-# aB0vRO+cBcsOdA/csEW6G4n0BI3ahaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBX1/wHElqIZPOE
+# nVVRbAkHpihkQAoPHQn67fqLswr+C6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -490,31 +493,31 @@ Describe "TechToolbox Module" {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDq
-# c9m5Ktchy4miZ1tfYn6N6YsnMOM5aCtqcbSU8SKyrzANBgkqhkiG9w0BAQEFAASC
-# AYAPHjG4c+TKipRcLfZoT5CxThMnL03zf+N8DOvKwMZt1k6Yg02F/P7+iZdraeQo
-# +0sHvgdF3qfRmfqXfLPNhSYqtQJpobCHKwcSFy+NXaCd8jkzi1op1OHWyG/jpQQ1
-# 7FqU7s5zloe4Ka4jrtbzhxYkneKXkeVYEpYt0HrCZ4YYOfnO7goYkJ1/O2YzwMtl
-# xGqNjQ488D60iEHcaMe1GHDNj4GLoRxaVfkIUU021Eod/Bf2N9649ULIszka/Fou
-# oZkLHU934uT5XChym1ppeCPnNlqLGYVINYa7+jiBR4eU2JtamKS2JLq/94El+vsS
-# jPq33hWo+i5WHSrJ6eu9dkl4jR/hgRqvw1oRMgJSu59ymqSQq9FJBuMFIVH3ALYa
-# F208O/lzNsuaIRZZsab3WrJ6/J0sGKkpCMPqs2aFZJb57MPP7J0b1o/yT1z+y6SG
-# Sc+5ANcFlx+MKveMeoOcyHE/GuOMRv92sCk+85MIxMcQUWU5e7mWOKbHy9OoJzsk
-# wE2hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAv
+# ll2kbIhnC1BePFKUoPaWh8n4PL4TvDTvaQ83YoZTojANBgkqhkiG9w0BAQEFAASC
+# AYAOC5cW+F04Bud4m42ib5XcyLufPJJiEuWA9JVewXb08VfyoD56PF6IKFl9MwOO
+# r666NQzmUD3/Iml3XUg1Fp7hPRZeK+PGQH/1Uaf5GEWLMoxnjdoFRfgDZnDZhYyI
+# X4MVaN1AqvElNQYk5PfUGe8jPt/PTSmqsFGbtHAeN4Bxemg1eMHIRbSJHqt+o2Oq
+# tIA0IU8xmvcfyPzMndqTan7BZbiwG+IeMnQsvqO7GCk/7QGPDx2IvAFoOz3CVpeM
+# 100K1CstuN0L+PD57WzJcUaVGBVM9ANNAhGybaN0q2bpKtYHkrgeSy44TgUMYyF9
+# k6HM9ErZg/FVXRvLG40KKoHMboDmyqK/j7HAMyvP9cT6FM3rKEgv+7H7FTmGfBk4
+# X5n5YPKkhIpvRxx8g2j61QKOcwolzW45AVkTzA7nVS7gpqEXL8dRPG6Q3B/GpGBO
+# 0ZYBtWxMW/nu/vMggoI6Z602PHxqHwaA8U+BD7T9MsYN8KAzzp4PLXR+OCTuBars
+# 2hqhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTEwMDMxMjA3WjAvBgkqhkiG
-# 9w0BCQQxIgQgKxTiKhQni42M/mgW8SSuBJCLrPSLy0WbQpthX3GQskswDQYJKoZI
-# hvcNAQEBBQAEggIAEAhcVVzAsT2uym49nBIxLQKPY6ah+PfN2O/1oTQvjdE4BN9K
-# ajyrs9dmt0AbC4VNzZKxNQiKqjzHoKpjtlpr9MQgI05q37qFgJhorUygWv/UkaEv
-# 011+CjwfcPXOP3JuaHdTbjxmlODianb1dnNSzzXepG9wTgIqR7u5q5qFFeeUtcC9
-# UraSvgbnoNvV3dmXTtjjSGC/z1DmtoOepUauO5bkwpO1bQ7XU2jT1UN/I272HkjL
-# dhfCsAv7QIO8gK00NP+Tq55k/cotm2FkChVwOuaQDV1VnM3ZqsYdIUTBWilQVOLx
-# wHbOcNyzisiSsoxEY6iCu9pfjtQzb4704nArKKqRThk3IPHS06Grq26moRXdvWYf
-# RQE7VHslwajNvPyIRJTEo0lXg+9A76bOVGY3n3oZFteWR2PKI3fKwBQRvGS18ZkI
-# dPlQdsOYlTtnnFGt8Cr0kPS14s1Wu5s2Iz78Tfa46MUumx9MfeqwlLxI8nf939TO
-# DzJF8LdcATNs+8NRa57bK8rCy59C5YR6MSs+5BgmegiEcHxrbv/vTw6oceNX4BH4
-# BfJ0AwnJX7tSojHKyNsUWecUSppTmOmzFUFMhf1ObYTo2O2yhJ+KCdnQhylIF358
-# JSvGHHMmjjICIdkhRuExXf7mrft8oMHjDQ7dnNJZx2e890qHCaB//DSHIEg=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMDUzNzQyWjAvBgkqhkiG
+# 9w0BCQQxIgQggYwf+MK2SH+4Jon1ZAHBoaN8esFYSI+Nz15LPfxddxcwDQYJKoZI
+# hvcNAQEBBQAEggIAA2sAMXTf6QFDuv00CacoWj4/ERLzrzX50Ezj5/XA0ZdYW7rm
+# hpVizZWevIxIo84sVggCfuMULQyfV7VQtaQI47bHmAO2Xa28f/kdezodKusNHrC1
+# EoThPiW0QPOz6ReiM0Wey8wUNM0yx0p9xZ5uTzeTJfPok4dA6xzQjrUPR55HB4tg
+# d6bgQannvrZj6dtVjIfsOXrV9WZf20OWYmUDAOXo2uUjRvTssVOP+JgrEzcshbHf
+# vrv7luGdfzeHkqzfC9wvtO58iRfybPlZUyzUGjtDWPRKE+8BPlzOdtrDTeOYjqhn
+# DJvnEM0CBkP9UJoJp9zn+H38te6RlysDsol9SdKp//na6/cXwN2juPoCUfmN+FMB
+# 13hIHeR3Gr9LUCmhzgufvdNopQBkX8ESXyayTo9zulS0hUjkermZfBknKVEFo3zQ
+# yaWRIdc3P+J3C+r19K1cTBgcRBy6dGric6mvyAbV/KHpW9VMxqfDxX9KDqbwhyja
+# KUOZFwyujE4ZsrfEmUfomQIhXjrfhZzcpAsp2Rx+hpMqt/+MUCvBaVMVY2b5dLn0
+# 7NYd+Ghx1qnXN8xxG8mgs1+0rFZ64dVf5YfLXvAQ+g6Fmj9lNBGvH/DXx7d9r4B9
+# PSGHqcNQVSy2u0FdPPwPzdORgAtQQibfLFrcVrun5EWbKabm46rgdaCN2so=
 # SIG # End signature block
