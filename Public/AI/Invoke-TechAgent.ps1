@@ -2519,8 +2519,77 @@ finally {
             $startupWaitStartedUtc = [DateTime]::UtcNow
             Write-Log -Level Info -Message ("`nTechAgent startup: launched process pid={0} runId={1}; waiting up to {2}s for the first AgentCore/run-loop signal." -f $agentProc.Id, $runtimeRunId, $startupTimeoutSeconds)
             $startupSignalObserved = $false
-            while (-not $agentProc.HasExited -and ((Get-Date).ToUniversalTime() -lt $startupWaitStartedUtc.AddSeconds($startupTimeoutSeconds))) {
+            $startupProcessExited = $false
+            $startupExitCode = -1
+            $drainStartupStreams = {
+                try {
+                    $agentProc.WaitForExit(5000)
+                }
+                catch {
+                    # The process may have already exited; continue with the line tasks.
+                }
+
+                while ($null -ne $streamReadState['stdoutReadTask'] -or $null -ne $streamReadState['stderrReadTask']) {
+                    $drained = $false
+
+                    if ($null -ne $streamReadState['stdoutReadTask']) {
+                        $stdoutTask = $streamReadState['stdoutReadTask']
+                        if ($stdoutTask.IsCompleted) {
+                            $line = $stdoutTask.GetAwaiter().GetResult()
+                            if ($null -ne $line) {
+                                if (-not (& $processAgentStdOutLine -line ([string]$line))) {
+                                    $stdoutLines.Add([string]$line)
+                                    Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                                }
+                                $agentState['startupSignalObserved'] = $true
+                                if ($null -eq $agentState['startupObservedUtc']) { $agentState['startupObservedUtc'] = [DateTime]::UtcNow }
+                                $streamReadState['stdoutReadTask'] = $agentProc.StandardOutput.ReadLineAsync()
+                            }
+                            else {
+                                $streamReadState['stdoutReadTask'] = $null
+                            }
+                            $drained = $true
+                        }
+                    }
+
+                    if ($null -ne $streamReadState['stderrReadTask']) {
+                        $stderrTask = $streamReadState['stderrReadTask']
+                        if ($stderrTask.IsCompleted) {
+                            $line = $stderrTask.GetAwaiter().GetResult()
+                            if ($null -ne $line) {
+                                Update-TTAgentTraceStateFromLine -TraceLine $line -AgentState $agentState
+                                if ($line -notmatch '^__TT_ITERATION__:\d+/\d+$') {
+                                    $stderrLines.Add([string]$line)
+                                }
+                                $agentState['startupSignalObserved'] = $true
+                                if ($null -eq $agentState['startupObservedUtc']) { $agentState['startupObservedUtc'] = [DateTime]::UtcNow }
+                                $streamReadState['stderrReadTask'] = $agentProc.StandardError.ReadLineAsync()
+                            }
+                            else {
+                                $streamReadState['stderrReadTask'] = $null
+                            }
+                            $drained = $true
+                        }
+                    }
+
+                    if (-not $drained) {
+                        break
+                    }
+                }
+            }
+            while ((Get-Date).ToUniversalTime() -lt $startupWaitStartedUtc.AddSeconds($startupTimeoutSeconds)) {
                 $pollState = & $pollScript
+                if ($null -ne $pollState) {
+                    $startupProcessExited = [bool]$pollState['processExited']
+                    if ($startupProcessExited) {
+                        $startupExitCode = [int]$pollState['exitCode']
+                        & $drainStartupStreams
+                        if ([bool]$agentState['startupSignalObserved']) {
+                            $startupSignalObserved = $true
+                        }
+                        break
+                    }
+                }
                 if ($null -ne $pollState -and [bool]$pollState['startupSignalObserved']) {
                     $startupSignalObserved = $true
                     $startupObservedUtc = [DateTime]::UtcNow
@@ -2530,6 +2599,21 @@ finally {
                 }
 
                 Start-Sleep -Milliseconds 250
+            }
+
+            if ($startupProcessExited -and -not $startupSignalObserved) {
+                $startupStdOut = ($stdoutLines -join [Environment]::NewLine).Trim()
+                $startupStdErr = ($stderrLines -join [Environment]::NewLine).Trim()
+                $startupOutputDetail = ''
+                if (-not [string]::IsNullOrWhiteSpace($startupStdOut)) {
+                    $startupOutputDetail += ("; stdout={0}" -f $startupStdOut)
+                }
+                if (-not [string]::IsNullOrWhiteSpace($startupStdErr)) {
+                    $startupOutputDetail += ("; stderr={0}" -f $startupStdErr)
+                }
+                $startupExitMessage = ("Tech agent exited during startup with exit code {0} before the first AgentCore/run-loop signal or output (pid={1}, runId={2}{3})." -f $startupExitCode, $agentProc.Id, $runtimeRunId, $startupOutputDetail)
+                Write-Log -Level Error -Message $startupExitMessage
+                throw $startupExitMessage
             }
 
             if (-not $startupSignalObserved) {
@@ -3097,8 +3181,8 @@ finally {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDWx9X1LDUqZGdn
-# bp1gnDX5UHXp8F0UP/eMkCFNWiMwe6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAd2RHE2dh3I63C
+# LCZQn6V1Aql3BhD2NZMOhZMo9AnmkqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3275,31 +3359,31 @@ finally {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAZ
-# 1kYoB8KQ5xXcgFa/ZjnB8axAuaTJBPjMCYsb3Uz9gTANBgkqhkiG9w0BAQEFAASC
-# AYAcUe5lg8TmjHx2v0lo1O8rysqtv188ka+H4DKPB4zdzpPY4qqQVredLZY2HFp4
-# VcJF9WwH9BP2+N1iEOUJYJcldoGdLLniS/1DN98UBb0vziYA2psN/yvCq9Jpg5qw
-# 2UTnzPzrNhHOKGEpP3QfdH1iEDzgeJLURW7jkIaiuVPY7XGZjl5NhGSU5wJ++JPR
-# gg9bBauUGhOjTVXzKia1L3/2v5xb1aATmvNqe1n1xpRgFIkHLrGnewH8SdJ5QDa4
-# H8Ugon3g7h1GvbUQaXeGMPI3nvBtFLJ5lM51/Dv4wGkc6SjnW9CQLnA8W4viWXb/
-# MtOpDFUZd2BpjeqkxsHNkmV6OvWYd1o3kzA4bGwXGVpnXzHPSxb62NZycFxZhBGk
-# /fJdABk5UEsZvp8Aot1vKS86a1RoZgPhBe7FuQmtIXYvj+scH4SqRSdZ5sNGMqZh
-# 6PrPvzM7pXgRRUylMp3CMIC4HEQsopEX4tZncPfuPBO0w0p1ly7KVzyOot8EtOnB
-# 9YShggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBX
+# 1zVFDMqVlAft6D8SJt3gchX6mA82OnWplD6a1a5qMDANBgkqhkiG9w0BAQEFAASC
+# AYBNRIMjMyZORTZYwEKlNSxXIu+kRjraz/J4Nz8qGr6H9z2hUkcZ8dBy6l/KvXiX
+# +yaGrhuAclqajJhv5dL2dc/eSJ0WsyGZAjCyNfis2GRsy7iBVONTFQWdRd1EtEHP
+# 9IuWvcdJbw5731vZMqsCw5M2Y1V7mPczvY0WX9161jbdtmaMZDuORylduMCIThL1
+# qU+lUNyU34n0kZNEO0XXcot38/CUPMvtKEBA37VE2l4mEd3/xsT4ZbzI0v9CVPlM
+# SH/bwxMkcGvtFNCbs1wQLYN0rvBg3cHhlwH156XJdly9csomJ2JUaZ+99MT7A67v
+# /r2tFgE4gsBC1RbRGpKedw6n9FkGITCq3OeHYMo1pEysh0in+Tnj/7oFF+uYZA65
+# RYOfNGjRavIpVZwFWSc+24WSFbbVcNiDW6YqP83yB7zx5qHKHsO376oQ1MWFblfK
+# zfbq/fyxo7HVtmO1vGiesk3OyFeNuM4bYPWF8C17ybfoXR4+BAfD2ZYaAiEHfTX1
+# NbyhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMDUzNzM3WjAvBgkqhkiG
-# 9w0BCQQxIgQgKPNE4RTGh/RtHBodUGqzXrjOrRI8uEPsJQ9TEBWKh3kwDQYJKoZI
-# hvcNAQEBBQAEggIAZhMmkN89v9FbPHZXqP0Gh23Y49z2m0eQ+qWAsQTuO7KtpY1j
-# V18C+TsuncW73ifZIUUEBVvp2s1nA3QTQaK80TKX2gIV7N+f1em8OWPjoTGgucCI
-# 9p2jl2tymjP1sMT3euk0dr4QfWRR7Iri/KP3BUvmnfC0GFR9AX/5cu89eqi52DF+
-# md/MoAr9dMm8LD/eW7PhnS6ZCciZFhnZzo8iMR5QkI8UhSZEpEkXE7VMsOGjznud
-# PBlyDRpzYUhs11aaFopwjfcKGyYb1DU+zbnrPKj671ZiU7DTUev9eaHe58qF5IM0
-# j9CKaU8T7lx4rzya+dx1HnbKOS2i0OqAq9J6nopBQLsJEhJxUB22mcO/4mJNoRAI
-# qRtE0lrs1dqBWLNHYSymdTwDMJ72TGOg9qrmLlHyVKyaROP7S8FXVhHuJppmiNUv
-# RQKvN/yfhAze6zjpEQL3Ly9uLL8DsZ9HSL2qLLHW4pRrsjsojetnazE284G+J/XH
-# wUiUnGat2VaMS39fotk9GhAxi282yDmI52KVoyRm6UxcJXZTMwPCpAgp6LR2GgBr
-# 7XRyuuDMEd1KFwHtMkqPbAGYDi0aH2YMMSK6vuf2fjY4xOcTUEIBQmh0+N+IonlU
-# juEzk/EB3rEgWFXCO5GQGLTMfAh0dMEqomFyB7pF6rNtcbF4UdRveXAT7Lk=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMDU0ODU2WjAvBgkqhkiG
+# 9w0BCQQxIgQgnIQiqMh0ec/rtOFqJcSGbt+HYX8PmBWs/1anuIZ0MogwDQYJKoZI
+# hvcNAQEBBQAEggIAKM34XkbpNQnQaDtaPDU00uQs1SFNxnphtdikDFMZ0fTpNyZU
+# lqSoPpRYvfRS1fWB1HmWUazJ56GBxoxzdtrjTQzDyaPcbnUULmMj2/Zv7v4U8QPc
+# 5n17aBPUgeL3LuF55HJwvyyKXJyaIW5dRIszcVkp386wnD7pMTqbdG81+PJoZI2C
+# AS5plNgsQMfaYvGwa8wzUTvk7O54wHbHibOnfRjCxn1MWiErm+xnGEZTfPW4vwwF
+# sGp21hxXoQkrJ8TtputPIYC8z+LBEnedOCHHlGzPhQZ+9fF4CPU/9ZfpcFL8Lzpq
+# g4OzabDZ6dWi2hMQB1JYXNQ2uS+wcZ8aRWz35OmROanYBwO2P9BgXAKs+oQ99BKs
+# zLH4UeVrwtDNHUd83HHejfKF0lkMhKmSw8jXxdPybkAeI3hPLis5f26gUI27SXZO
+# 5lwQr4Fuz9FRYA4p894zb4kFfLp8IvWzd/A445Iodaan0zzHHJz9rEV9nFxgsJBA
+# RTz60yDcKNE8QfsT1Mey0Hq3l/xqsI8EhhfzScSJ/MFkNKIte9gaVk+98YFE0vwv
+# qYX0fzokAqyhT/QD/lyAuVadm3zLkrytMrtvcxESL0muCtAXmkgxLBKpP+sEuDhA
+# UN5ONsGOgMqzXnd3do6yoPh93CcrGS0EJBHwrDy01COpjBGD7Et1NQAC9UA=
 # SIG # End signature block
