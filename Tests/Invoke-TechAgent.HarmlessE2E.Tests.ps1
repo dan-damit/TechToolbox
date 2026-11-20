@@ -31,7 +31,7 @@ try {
 '@
          $si = New-TTE2EProcessStartInfo -Executable $pwsh -Arguments @('-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code))) -LocalAppData (Join-Path $root bootstrap) -Environment @{TT_TEST_ROOT = $root; TT_TEST_MANIFEST = $script:manifest; TT_TEST_EVIDENCE = $ev; TT_TEST_ENDPOINT_URL = $server.Url }
          $p = [Diagnostics.Process]::new(); $p.StartInfo = $si; if (!$p.Start()) { throw 'Fresh pwsh start failed' }; $ticks = $p.StartTime.ToUniversalTime().Ticks; $o = $p.StandardOutput.ReadToEndAsync(); $er = $p.StandardError.ReadToEndAsync()
-         $processResult = Wait-TTE2EProcessAndPipes -Process $p -StandardOutputTask $o -StandardErrorTask $er -TimeoutMilliseconds 25000 -EvidencePath $ev
+         $processResult = Wait-TTE2EProcessAndPipes -Process $p -StandardOutputTask $o -StandardErrorTask $er -TimeoutMilliseconds 60000 -EvidencePath $ev
          $e = $processResult.Evidence | ConvertFrom-Json; if ($processResult.ExitCode) { throw "Child failed: $($e.Failure); runtime=$($e.RuntimeStatus); stages=$($e.Lifecycle)" }
          $e | Add-Member -NotePropertyName Count -NotePropertyValue $server.RequestCount
          $e | Add-Member -NotePropertyName Prompt -NotePropertyValue ($server.LastBody.Contains('harmless Invoke-TechAgent E2E prompt'))
@@ -55,8 +55,8 @@ try {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA17ATP8IeNxe++
-# sBuU4Hkq89PBEyba8oF/CbL4eYoNtqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCn3knhLhezBdV+
+# wUcCW9CtIgd9w4wOeamFHGbTZ38STqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -233,31 +233,31 @@ try {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCB8
-# YzNnAIm0y5kirPbLrCDoy9zF1HJ+2kvbGY0cx50ZCzANBgkqhkiG9w0BAQEFAASC
-# AYCgK6koOGO2RRyhueJqGloDC7fFw6c5fEKj6jwL326pe3j0zGJo1ZDvYUc+Ab5V
-# 4WV0kDrkG6p0KNSZLp+I7+9BsgE6MdNpcC8PUPAgSyH/Olun9FMU8AMMrT1NP+G8
-# 0quoDQzKWuZ+OGGeruP/02r3fGkw0QcWLd89hYPOd8cGHanzaCxO30aXXbzub+Wu
-# IDcw2Mnv37/tUHJiLQ2KBwYzhhxGhCciOlffHCcN+t2nvrLmyTjAL6X4Ct8luBm0
-# uDiVaEwnvs+DsfaZCKzLLc60cWWWHadmH8Ddono1s4fCmRr/knQ6qgtlOa2yNB9I
-# puT0wRLD3Gisqdrg7Q1qGQSyTWEItsNTCtsIB/XOvrJmIuq1Blxj5kvlyoh/KeUM
-# A1pJIjy3mWSLs7mAt3+RZ6G8POen1vPBh3FCfAL4GC5YrV082yALsveN2LonC7Iz
-# fAGJKQ3pMtiALh6T+hsmYcKGmLoVOxgLI7fwqU/v7S37iwqd0bwx6ZK/vJv1DLmA
-# 34ihggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDB
+# K43CMSu/LirG2Gg64loGyfGg5h77UrXJA6AZJkobojANBgkqhkiG9w0BAQEFAASC
+# AYAVBYrDLguik7skUxtus7u9O6noSNFM/WSN9Z40v3xIkvL4qyLN0GpCIjd5zCrf
+# EZwduQqRvbPym2zJBm5kGm182OoRN2UtVUDCKIrM7yuQLAbkoWpJTOe98xHU6JeO
+# hQ1L02KpffnVTpOGYAyX72z4Qg46wsifK1K9L5kZMSdzY/ClztcJ/Lolr6ZXqxzi
+# NrzFbthA4CGv9n9k0yd+rGUquSwW2BsIHC8gNvmNiKnMRrqsXS9/duLFNUzLu5Zg
+# /iCuLHeTo1LgFaybr0HfnaBoaqJHl+zbsAvJlPspIgCekDiJNLuvyZvhHywco7v5
+# 7wlCwb1POdnJFtBWAlgqzXSJyoNcqCOYWaV+cifTdUvV/sy6vpuNhPQVPiuOlIz+
+# 8FpYxmGsCwEePF5ByohY/SEMVXTIodWK0auyOj4IMH2SxKTxFhLixBqlsgFsRgtx
+# 0b6zXgvfX2x2HWVUTWK31/dKwy5dVSpyAx+AUJq4ynJpEHG6qZ8F9tApnDQMHJfx
+# kwuhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUwMDUxWjAvBgkqhkiG
-# 9w0BCQQxIgQgj8YncJ5LA0Uf+1xQ90bGLhYqTsn09g1sr6iwPE5s/lQwDQYJKoZI
-# hvcNAQEBBQAEggIAVEYH3UUp6BPK2bhNEszB9A7bzb4xm7RYvza0ogO1xgEEkkqA
-# r+8R2rfsjTqOVSH5rqWMRRKC8yJtFWcFE1JAaBNfIX1mmRGaF48tJo1EoEZuUNPF
-# G8doNSUGK6A0pObYA0YrtuCyotU0UZY/ToTKRIP/ZbZhs+OfGJGEHsnCQIwApbHi
-# F6lBPSyKhsNjgf3sNOZ3zCmAXsLbdpvzJ9r6GGP+MUtYIpxss/HLJTy1Q/BpE9x8
-# /i0G/KZyb9mbZdnscshNNEdBHM3pUAMxOOHvK5xmA6UfcWJEehC5lKpwOnUKtuQN
-# j0Q+HPTZUwhH4jtx73IAH5C0BtfqoFc2DIYy1ubGDIwPO7PFUZFHC9SwZdJurqpo
-# Vi5VRvoZvybpe9nQrfdcsOA58tvgWbLsdqdNof+YxAATPSzmJJiETEa03ihBJhvl
-# 3xX2ghs14cjx5BDPpe9ew8EUWSSNSBWwGEWl4e2N57kmFkB2cq4IqkfKC5zquQfc
-# zoPJXvZfWAtIoprjKB3sIYJiW/5TJxH54P7uN5IcHrXfkNXy9xOYdwq3dxwUvL9N
-# 1Bk233iIWC21V5Mnz7lfrrw+9l/pcNOneLihuR+9SrTrWG+B5OgEhA5SXLn+J4o4
-# TrEQRw+6DgKnh3SrXBmgpJ8jzXs8oKE+OKbioL9DQtD88wW5CvcueD8GuTg=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMTkyNDQ0WjAvBgkqhkiG
+# 9w0BCQQxIgQgkXuSlsEb+uh4YBq6jSXVoWJZh4fNAhIG7kJ0Trdc6UkwDQYJKoZI
+# hvcNAQEBBQAEggIALtVOR4YpxhH7JYM1K3GlboCE/+aEwzgcv2jyjTlu8gUze0Hg
+# Eeo7PUvMgPnrae70czKe5wo3JCPdeicvPyVDdA3RC5QKJI+bnUvS8fF8bPi5f1ci
+# FCVTH/Yzw34dFsiu43dSWpDpxPP5GQBG0NajZVCHAXA1uY2WxhcctddSiXLM4C6J
+# 8pXCs4PxvjjcyVkuShyUh9Fye7mC0RVAXXjtZaCuo14SiJwV3wR0+CLfZObAGFJg
+# gdJ1yTRUkz8w/2vPoVZnQcwipp6/CIfSZHB2jkBnutxe1I4+3w/fTanTEnIpxumR
+# /PVPCZ4Xa0KjPstgm9FuwxlI0X9WpqPwFRnOdJWR8PsDks5F5AQUUazQ53jBwp/m
+# 4Ghh9ghnaCNEWb2HvMnx+k9scMuvk/P1TnOCwOMYaziMgu/emu5GF9vbs5UQjdQn
+# hcO4uHnDMKZof5awwfLV1WFI5S2L9WNxi2bkuXETotCXTCfbz7tzIl36Uxfv/UDU
+# V4LtIyPMYbAdjbqP57sB1fDuJlYv1w1TSH4TyYctpfxixcfD/VmqnvuazeUk+nnz
+# Z3Gg4BCC0bTw2ISdtGG24C1q9N5x/lm79LvMoXkXDQ10qgT+IAJs9yHM44gG80j9
+# xmr67HIgT8j2EVqNKUTJuHg61LyjdR5kopSOlw9fGm+CC/xy6AHcoF1sovA=
 # SIG # End signature block

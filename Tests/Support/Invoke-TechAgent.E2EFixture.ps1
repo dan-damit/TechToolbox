@@ -72,7 +72,19 @@ function Remove-TTE2EOwnedRoot {
     $fullPath = [IO.Path]::GetFullPath($Path)
     $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     if (!$fullPath.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($fullPath) -notlike ($ExpectedPrefix + '*')) { throw "Refusing cleanup of state not conclusively owned by this fixture: $fullPath" }
-    if (Test-Path -LiteralPath $fullPath) { Remove-Item -LiteralPath $fullPath -Recurse -Force -ErrorAction Stop }
+    if (Test-Path -LiteralPath $fullPath) {
+        $cleanupDeadline = (Get-Date).AddSeconds(15)
+        while ($true) {
+            try {
+                Remove-Item -LiteralPath $fullPath -Recurse -Force -ErrorAction Stop
+                break
+            }
+            catch {
+                if ((Get-Date) -ge $cleanupDeadline) { throw }
+                Start-Sleep -Milliseconds 250
+            }
+        }
+    }
     if (Test-Path -LiteralPath $fullPath) { throw "Owned fixture cleanup failed: $fullPath" }
 }
 
@@ -333,8 +345,8 @@ public sealed class TTE2EDeterministicEmbeddingEndpoint : IDisposable {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBsqrplMUnDiBkR
-# 6U23ss9nDszRXcBzr0mXfceDYorFIKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDPEYNPDLbWKIjX
+# YuVgpumP5gwAsRDyG/r7utkF50Py96CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -511,31 +523,31 @@ public sealed class TTE2EDeterministicEmbeddingEndpoint : IDisposable {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC6
-# STiplQXmm+JoC0HanDHyLrOF6f5q6A+LZj2w1A8aWzANBgkqhkiG9w0BAQEFAASC
-# AYCt+GObz2OyYxYFrU5pvApfrq9pnltoatxJuvxxY/Iv3GueWN52j87MY5GgmGRG
-# dYZIwAF97Hvn01Qz3rCOgfv4FGzltace8wCml9tm6zNpoANS+X+wu9tYrmcxtpmr
-# CEnQnIhWTeiaJONe/tyLPj9b0o5yuQpwiZ3mYQqRo0XzXeKdyTUHWiP9MOe/lSzj
-# beZlxRHRY6XKAm1sIUTlIVtUnCJ6+VirqHZbfbSmPAW9s9vtbgjhkZ6U1E7r7Ejv
-# fo+WkSPY6pFEvzQt2TS5tMIhuIfaEYAoymddQe0odKb69d3Zdk1bmxrg2/gvAQ2l
-# WW43xvoug1caj6GCrlEfTnnzmmN8+5ay9a33fJ8orHFW0VfIIzpFCdWsP2KwsoCz
-# hxPZJMCiUr8ykArzvAwhvAXQohrcSQwCvO112IPCwoofg27n1aP7e6bELW2VMT/E
-# /4MlG4ZHeiEK1MxmIHCMXgMz5iCtfcCZPDjhw5qHiKNnln18RqyPkKkD1GKoo2r5
-# S8WhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAD
+# Wzwn3cUsI+L3HrINYE3+QZo9gVau1QgjzCpdhG8JtDANBgkqhkiG9w0BAQEFAASC
+# AYCXRrKeEUejaaV/Ewcoz7PumhvhlkGOFCstqOH65i7me4fgO6Fg+V25YHfktu5R
+# UZQkC2epC3KgTppj1GO7HShseOrnRft1VB7v2usJ9S1rpFLvHRuShAXGFM8DbVs9
+# aix4AksMevVZjlPntM7ZEqjDZLOVyWv5x8DzJqPye/H8FZ0m33P04WoYrhBUCE8j
+# C1pENsSEUPGeo00grj97M3B7YMmybt8J8z0qTGlZK04oHSHx8eJmwmCxomJXpt3S
+# MBZE89MtIGTOQjpk+nO4qB6Wdqq15la520FmjITtl4rquHJjCO4k8+tFcGDYFUM8
+# Git30WvPP3wKY1kAwzQ+brj7fE79z4wh0hJ3oFquPx9RjwhEf0Epn1HiPpB6SZA0
+# 5FnwVgJKrmlPMc4YpZnnvYIgLIHMn8uqGhrRAHCISYWRVDGFg/aTb3xhyHmCyNsq
+# 5CNunRjAQEattnJuA/0X8NNuPf/fUBG4eWmKdVYdBHSuVvpOAUCCtaA6KHdVSPwG
+# WyChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDMxNjM3WjAvBgkqhkiG
-# 9w0BCQQxIgQgBcl/nQzz+2LssS4GP0vbIggtoipl6JER2xTyKsqCWFcwDQYJKoZI
-# hvcNAQEBBQAEggIATyNVpYx00Hq3JlZOyKjCEhMB4pLkWeXodahvM9L39ME8pxy1
-# i8Zo4cb5q3wlepdH7odY0ifxXZx/wT0Ojle895140CqBs/ZnkpZ46rV3jIpRPnCW
-# PVpOQgjjxmtCX7M6OLbQbbpkRHUoPqZ/UTo0UldZW4K7jfDMnVdjA1rUqHcdrl19
-# R45J1l86hJS61tAVw4ks+ZcTCFCDNUpIukUv/bAUm0eWnFXxX4Fw3LXRAjXL7vre
-# 2V2y3gPbGuzQSDMf0POcZ29uzhosP0D29tvSZ7lDmo7Fdrb3KdE/1D5p6633Sf5E
-# yz+HVXyW54RFlJaL2Axb1feBiV2ZPl+wwtR+V3RCuhWsPBf/HyGou/RLC++M2qhi
-# nPk7MyuEKQKwLXKdUUlkpb4OjjZuu33S2P0L+03vefA4Q7boFgQZ2YpoMQxdWprL
-# LxPjLHbze5i0jx0ir13SHXeDWz/qsjeES/gn/BF1XQNURffXFhn2figWbhtcEyBe
-# aCBIlHofiAI8aNWkci5GLlcJLbinoMFjm4JKjKrprPUzOZ5u4kofgxjJHEao6V0z
-# 1Piu/VkEwYfcPnGN+cmIF32U3DnotFK8rb2ugB+C8Y8/PWdqnqtxOTPetMydnUwW
-# KFqRB7xkjs2O4iTJ3ydrWZw/F7Bd9sGmWthkPQd5qje/cQncx2W+7Y5qsnI=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMTkyNDQxWjAvBgkqhkiG
+# 9w0BCQQxIgQg7bSp7fGUvx9S+dn+zZBfetopjlkW8aMEpp/mxl5PcyIwDQYJKoZI
+# hvcNAQEBBQAEggIAmCwGnw4GBep8NHhO29Xw0s16HtwQBXSb3iuqUJ0GC6oQMk6g
+# OtgbaVa1ez/PZ+3C1mFEwtmzwbqwi3ub+BN8yv2Ph9uTyzNWk6UfTFDU1nANxBn7
+# 0ATAjYCm1ZnsaoQhz88kjnATRN2cn/g8V1m/cHmBZ1JH+lz4r9B6XcBUtiWFAwXM
+# PzpDONW0iLbZPzXp1lHWxdEDadgcROzXQZf4BuV1r4WiLGygHtq2pIlPnq8v7QnX
+# UMUniwGOEyxrBLZu4XMGgOTJNMfS+r/APQgrjlPe8C1qHy0x5Vvh2Obf22D8AmQa
+# VBS5XrvGfIgRYoSNTiK25l5gu/4e/+0hasnSoUu4U6Be/fV+qozG1ROFi/60K+8F
+# qBWmpATcNbaUyjn4S4/ocBfmCAlmNb5esH+vcOSkua9ObBsA/PuzfMsvJof+1Fyp
+# 7Rj2HT6hLKuaSIa5Q56xlqV0GN2ygdtBt9FTDHTo+Zk6CyJ7Q199lOpomkQM9ZeW
+# ZB3DtoUfO+/HHoua8IBTvYzlMf8P/5vCkem83lD5g+i53FMEInpaeUaHfajlamFa
+# wM9dnx5zGgPzPlb8Z0gYfI/uwfSer4jcAmicRkUItqhaYpbQYDtTp5AY6WiAFoeL
+# DFdsRP0BRgBDO60zPb3K9xgGMWg0iou/wvAe51NB+5uZOlkuhm1+Q2binPA=
 # SIG # End signature block
