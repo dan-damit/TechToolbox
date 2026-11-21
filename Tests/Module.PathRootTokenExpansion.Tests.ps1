@@ -38,13 +38,37 @@ Describe 'TechToolbox module root-token expansion' {
             Import-Module -Name $manifestPath -Force -ErrorAction Stop
         }
     }
+
+    It 'adds tokenized defaults back when stale environment values contain only a legacy root' {
+        $manifestPath = Join-Path $PSScriptRoot '..\TechToolbox.psd1'
+        $originalAllowed = [Environment]::GetEnvironmentVariable('TT_AGENT_ALLOWED_PATH_ROOTS', 'Process')
+        $originalFilesystem = [Environment]::GetEnvironmentVariable('TT_AGENT_FILESYSTEM_ROOT', 'Process')
+
+        try {
+            Import-Module -Name $manifestPath -Force -ErrorAction Stop
+            $localDataRoot = $env:TT_LocalDataRoot
+            $moduleRoot = $env:TT_ModuleRoot
+            [Environment]::SetEnvironmentVariable('TT_AGENT_ALLOWED_PATH_ROOTS', $localDataRoot, 'Process')
+            [Environment]::SetEnvironmentVariable('TT_AGENT_FILESYSTEM_ROOT', $localDataRoot, 'Process')
+
+            Import-Module -Name $manifestPath -Force -ErrorAction Stop
+
+            ($env:TT_AGENT_ALLOWED_PATH_ROOTS -split [IO.Path]::PathSeparator) | Should -Contain $moduleRoot
+            ($env:TT_AGENT_FILESYSTEM_ROOT -split [IO.Path]::PathSeparator) | Should -Contain $moduleRoot
+        }
+        finally {
+            [Environment]::SetEnvironmentVariable('TT_AGENT_ALLOWED_PATH_ROOTS', $originalAllowed, 'Process')
+            [Environment]::SetEnvironmentVariable('TT_AGENT_FILESYSTEM_ROOT', $originalFilesystem, 'Process')
+            Import-Module -Name $manifestPath -Force -ErrorAction Stop
+        }
+    }
 }
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDbAw18g5BCfgaW
-# FDnBB6UkcqOUBkR1bOU77+xKj+aam6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBZcqQXA4vvscWP
+# yuM1dsDE6Qwd7u8hxKbI1Jfmskf2qaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -221,31 +245,31 @@ Describe 'TechToolbox module root-token expansion' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDR
-# w4i8DuSqf5D0j9GQwPsW0C104xCHcSdJb/JVu8leZTANBgkqhkiG9w0BAQEFAASC
-# AYAkjlMF4xpJ6MkkJsDx8BKOXAwd5uPgYYU0Pp5qupo3TXFFukY/XclhO24NT3yF
-# EuI++WshLJOI0Ls3wWKCrAOplZqiqcJLZoGKtyPjrNT0TDC8UvX/wvirw20UPKaA
-# hMd+gT0Jj4bxHzQqUhw3eTxAWY91L/PqO6IxzIvDe1Wc89HPuyKutbIDDJbY/sfD
-# imk1Y5xdGHXLtANCgANs63u0QGkP0CJQpg4BFSdBP6hri4eGJzQtarULo5GmAhgd
-# RtcAeIiQporqNZ+eWyLzn23N6hH5DXSbLgsBHH6wTtt7jNra3ZXBGKL2i8jF6qRd
-# PmcebhIbVBW6uidoIUMVaGDhc4TIZLlp1VghXxP3x/uOewE6wGxz49ljGYRr/E6U
-# wgfVrpaEhfnYrEc5nnwipk2qxKOwtYbB0haJyeQxLDt6WfHAC16AqB5e5GYqJI6O
-# cD2Ay5z9GIcTsDar7zkoGwNHABwMwyTjmx/J7+3irMHnml7cU97pG1zgWi0Qbwsv
-# fSuhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCDU
+# QDxgTxrlnF+5BS+SePhSD9/5b3PqZzKsEFpu/bNEPjANBgkqhkiG9w0BAQEFAASC
+# AYDIzrqLF8ZjoUX8tfo6OmSQHo6KRAhuIDzz/Ibur3y66jCbJWHHKkLA76m2AN6/
+# GsDBMHApceQXE0ADFXc2e0NJJgxlnfe+/tq0cm/+CdadImiqE6HZUde8zZoHmVH8
+# 3q9K0zO/moO8bvOu3sKNxULPiSLiPj2H0i8R+AMloJbe35Z5saUR9uOPffNbz0eh
+# 2t4NmHIFTwXNxe1sYcCRhe3esTrk2NtkbELyqxu1v+Be270bQxteZCRu/CsmEnpB
+# sC8SfqmowWISFO9jLuOPaifjjrvILEUy0TT9oJwtWdGjYvy50bntCJ5za9GXsM0d
+# e8JHz40GK6jrNsMNeG8GojIHiq883KTpnMGPmX0/2HbwHhVjYtv0Qxu/1LVVL5gu
+# FC3Gi2O4X6DQBbLuwQqdyr5T/V0PYMYKrbM5JBCh1Xdbf163pkB2SmNkFtD7iUrT
+# a3gJRxldPdoTwHfBd8/PekkkNw1sSbmNLTRMGnmVPqb/5alVUv6IxzoLsSTjj9HS
+# sbihggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMDEwNzI5WjAvBgkqhkiG
-# 9w0BCQQxIgQgL0j+I72N0B/rf0kSiHyg50GdXYX33Mu3a+LfO6CL5eYwDQYJKoZI
-# hvcNAQEBBQAEggIAb0QrA9qegOP2sAvBTFrxaxocG2awrhnikruiMj82QfZIczGv
-# GQiGtG9JBu8/RSYWD1pytRaCbUymyErQvD9/PMIwwpH9grjYqvVUL6I/FijHmvZG
-# 3z4qDO8feoAVCtMGkw6pDT58XB6mek4rrloXRDyM3hg6loDu/d5v5DKVJAfOhaRC
-# UyyYXjyke2/PkEvMxjNXGo/p1L7k2O2zzOQIm3c/QKT2KBeYfnqvVXHD2wj54YQs
-# s+cVDCQnKCsx3oJzpT4IZXGQBzFO7lYKVHJE0KDK5UK36kPwHOqa7L6Mb/oCBtlc
-# 8Qqt3B++/weu0wOouhcz9W8DOrbw56GfNxpd4DHqgrx4kTMpkh7HFn+ykfAxQhQD
-# OF3+EQ647sVxmLYqzlmucR1y0ge+Orx+TvvYAUV7f3itN5XbVNU/Ykotn85M/9Zb
-# Q9QKtWHbHYf6QSmyUFFkhtsXCM7I2qZOFUTGM4i6039lkxcF8EKH/Ryusj0216aY
-# d2+3x2GsjzfDkabidPvZdePbLbHWRS+JHQNr8q/yaqiUp+l/ATGTMCjZEeXEbca6
-# f0fNQUc5HXwnnkK3mr69P7jcgQ9hkwfnrJhaSa1Dzn2H83jdm9kmyMYfhwlEwcsk
-# L+hEu/7p3IVrwCSdPhKJ6QfcdPOkay5nqYTAfUO0xyfBwYmQxsx95HbBsB0=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMjIxMzIxWjAvBgkqhkiG
+# 9w0BCQQxIgQgB0l4Hkd4QG2NJtnDqf3s+AnTB5pjhv5pOizMz6jnDA8wDQYJKoZI
+# hvcNAQEBBQAEggIAg9FN5m1OSe6wryQsod0CIsbY8BfBw/v7dflnx4h2CQTp4895
+# kShOOF8Lw56xiEQS1dLmx19B4FfxeYyQjJJqDWSuxIW2T73/px1TikuL+NP09gxy
+# lB/rfO39QwGDpmsjouIx4XY8OctLUrtj6cqDsRkft5gec4o0EZKpUQCAGpJF0hDW
+# dTeZE0O/A0e7H5mNfNgkeZ36m1fbU2dRE7VN55XXJOkn+cyj9T5TqIMkAgZqH4Pe
+# J1LRgM1q0dQkM+oAO8YrWqI+U0obKFtrN33Y6U8eDNDwQt/LXOv9MAvdR6fsVHGD
+# S7Ef76SLhFvLmbZzvmSq0tUyMYxlQi/8I2LlEI8xmYhsTs9ieOcKfLDALZZ7QkSL
+# 4dXhNiAqhzv+LZyrXISJeNbgM0izlEG2Z18DIj7YpPWGQrVVglewSutGdAh9URSF
+# +MuikCaX+ne6V8QPIzC4kQBrhViyDgiDFKzgdgsoL4bOUbz7iBAKKmFknqfw7YLW
+# G16kaPm0patRfpIH/32y+EMl6hwrDmsakWCkemdvwFJLhfRi0jbMli30b7w1XnGM
+# DI5eCiv5d0cPJ0IWGreLnW/FhiGeSFzODu0MAds7D/r2y7MLuL67EDZnJnUMoKf9
+# TYz7JPvfjTuRzXysy1Yh+P1iIHvQMOLLWiRPnoq979yFw8m2MKZ7KVKAhXA=
 # SIG # End signature block

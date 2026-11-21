@@ -2040,43 +2040,8 @@ finally {
             $allowedRoots.Add($fullRoot)
         }
 
-        $configuredAllowedRootsRaw = [Environment]::GetEnvironmentVariable('TT_AGENT_ALLOWED_PATH_ROOTS')
-        if (-not [string]::IsNullOrWhiteSpace($configuredAllowedRootsRaw)) {
-            foreach ($root in ($configuredAllowedRootsRaw -split [System.IO.Path]::PathSeparator)) {
-                & $addAllowedRoot -Candidate $root
-            }
-
-            $localDataCandidate = $env:TT_LocalDataRoot
-            $moduleCandidate = $env:TT_ModuleRoot
-            if (-not [string]::IsNullOrWhiteSpace($localDataCandidate) -and -not [string]::IsNullOrWhiteSpace($moduleCandidate)) {
-                try {
-                    $localDataFull = Resolve-TTAgentPathRoot -Path $localDataCandidate
-                    $moduleFull = Resolve-TTAgentPathRoot -Path $moduleCandidate
-                    $hasOnlyLegacyLocalDataDefault = $allowedRoots.Count -eq 1 -and
-                        [string]::Equals($allowedRoots[0], $localDataFull, [System.StringComparison]::OrdinalIgnoreCase)
-                    if ($hasOnlyLegacyLocalDataDefault -and -not [string]::Equals($localDataFull, $moduleFull, [System.StringComparison]::OrdinalIgnoreCase)) {
-                        & $addAllowedRoot -Candidate $moduleFull
-                    }
-                }
-                catch {
-                    # Preserve configured roots if legacy-default promotion cannot be evaluated.
-                }
-            }
-        }
-        else {
-            $defaultAllowedRoots = @()
-            foreach ($candidate in @($env:TT_LocalDataRoot, $env:TT_ModuleRoot)) {
-                if (-not [string]::IsNullOrWhiteSpace($candidate)) {
-                    $defaultAllowedRoots += $candidate
-                }
-            }
-            if ($defaultAllowedRoots.Count -eq 0) {
-                $defaultAllowedRoots += (Get-Location).Path
-            }
-
-            foreach ($root in ($defaultAllowedRoots | Select-Object -Unique)) {
-                & $addAllowedRoot -Candidate $root
-            }
+        foreach ($root in @($allowedPathRoots)) {
+            & $addAllowedRoot -Candidate $root
         }
 
         if (-not [string]::IsNullOrWhiteSpace($expectedOutputPath)) {
@@ -2092,19 +2057,15 @@ finally {
         }
 
         $filesystemChildAuthorizedRoots = @($allowedPathRoots)
-        $hasExplicitFilesystemWriteRoot = $PSBoundParameters.ContainsKey('WriteDirectory') -or -not [string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)
-        if ($hasExplicitFilesystemWriteRoot) {
-            $effectiveWriteDirectoryPolicy = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory -AuthorizedPathRoots $filesystemChildAuthorizedRoots
-        }
-        else {
-            $effectiveWriteDirectoryPolicy = [pscustomobject]@{ AllowedRoots = @(); FilesystemRoot = $null }
-        }
+        $effectiveWriteDirectoryPolicy = Resolve-TTAgentWriteDirectorySettings `
+            -WriteDirectory $WriteDirectory `
+            -AuthorizedPathRoots $filesystemChildAuthorizedRoots
 
         if ($allowedRoots.Count -gt 0) {
             $startInfo.Environment['TT_AGENT_ALLOWED_PATH_ROOTS'] = [string]::Join([System.IO.Path]::PathSeparator, $allowedRoots)
         }
-        if (-not [string]::IsNullOrWhiteSpace($effectiveWriteDirectoryPolicy.FilesystemRoot)) {
-            $startInfo.Environment['TT_AGENT_FILESYSTEM_ROOT'] = $effectiveWriteDirectoryPolicy.FilesystemRoot
+        if (-not [string]::IsNullOrWhiteSpace($effectiveWriteDirectoryPolicy.EnvironmentRoots)) {
+            $startInfo.Environment['TT_AGENT_FILESYSTEM_ROOT'] = $effectiveWriteDirectoryPolicy.EnvironmentRoots
         }
 
         $startInfo.Environment['TT_AGENT_ASSEMBLY_PATH'] = $agentAssemblyPath
@@ -3183,8 +3144,8 @@ finally {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBqmyfoopXRrJKY
-# 9JvMkhTIGvG3W6OIiiQtX4nyDHBokKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCYVAbV6UPl03TT
+# OY4qo9Q9x/MPRB5ObWBtLZfSg9bQSaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3361,31 +3322,31 @@ finally {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCD3
-# Pem3mohFuD89ZaMf2XtrsftEJ0QOz2QRHG6xBfUo3TANBgkqhkiG9w0BAQEFAASC
-# AYAZ6x5hblckG8TLWyG1FXQYnSVaZ4K2j0fdRArpv5n2L/OTDxjbYJykYz8/qpew
-# wQ4DCBWB2H5yZedvDlS1xUK+7x1F+zvom6/xtE75dDcZaQTw3M6mmqXNmXUyWZ2C
-# orZXM2CcKeoNa1Abza7pFLhtGubJggnZkSu7NrxqD4LbD+0EPDa2c/9hFShR1b4o
-# fdxyesqGQ0OLh57JZgzuB7rhVbLDnNs6dFZwPzqwDiJbqX0K8lVe3bIDa87fvZqQ
-# 9uBoJ0ARgZHIM2vxWiaDArs6OHWxvSAP7dWlM11pbD8+QILdvjYn0/o3dD4FeYXG
-# zII+l76r2ZhoMHacMPxGAX2qNTagTXVASq3vx+rPvlX4IESFZpQlGyNfd2icDpyX
-# y03d51Wstc4AGM4fvGhIARxkbnnwBmPu+1rYfs1Tw7RyCgGwKVKdqr4H74CTyaTc
-# hKuapmefWm/d9U20NoNxHEdtnUvPFLNLdw7N4gctxkXugmuga34/9Emmwqi6jrSf
-# m76hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC4
+# I62+PwOCcvy9rzuTL3GQA0AgSQwD+zLKpJxquIg+iDANBgkqhkiG9w0BAQEFAASC
+# AYB0+XeEVqBikaGpEuZGYfFNDwQlwW28UQP0gCgmg9Pqu6BnvbLBpZdgGL3ecZJM
+# zpDyZl/97AxFERpmsN8a55GjLUN/6I/FopcHJ9shp/nml/9KPPO8B4jeZmEu1N8p
+# gwO6SYtAWQ1wDcX1ORFBsDJLaDqBKNqcPJPDQrAz15Ohsb3livkS5wrjg70omcG3
+# E1nchjK2Ke/d+Bo6mXE/4O0Nn0QvIzGwxG3n/FE5iYlck9ZtM8Il6wv4aIJkzPYB
+# GSrcYZy+D8qG9kl3g/S1rSGL4+QqcUacnw695FOG8SING6XQUTyr5F90VJo7E8uN
+# 1hDJJFcksmXCI+fufP15ywHUXSC4S/r6OHSI7D0XZBI0VXfCJcPfzt/XJ7dWegrh
+# D/VlJsC6RCgCMfozf2wqpUDuhXjjj+2B1VhmtjuZQQJMsfz7rwGTWCKrpEC6Tb+a
+# TpUDNRbZorBgjaEsnDlbZImGyNUDO2NMq7lKo8lc5upbtnYzwrYUCITBXEGUN35S
+# JkmhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMDEwMDEyWjAvBgkqhkiG
-# 9w0BCQQxIgQg7wBRIRBGF+zD3OeyGy1JDy3wprXZoZh4DgvXvwmI2kIwDQYJKoZI
-# hvcNAQEBBQAEggIAYAMIdzS6GYjHY9zyw4ZXshdg3ktbN7u/oTVrSt6FI1KciTv9
-# CohyLJLu1qjoXXKm3VbcZ5MnV63TbyIeE0oFLQzVtCaaA4mmdvioYxBKUcLQpcfP
-# PVBYoniV5mcIOLnc04xrX8hARVRcaYlfSjd9CYx5j3+lFQDIRgD0M1z9kjK0BHAE
-# iWEgIqzM+Ld61QtvEA9Vys518jhOt7hI4NW/73FJ3iOXcGd+BeU9dEWf3UwZqU3L
-# bRPRUouTis3s8Z0z3nHtldvBCKyTjR21ckBhxQ5RPB8f2Zy/5CkbwWymGhGeMye7
-# lvooKqPsY4MJLoxKz1704UAThfCpFuiAftnHjvxtP3qD2O8coSWx0mN5wvDOx5LF
-# pfdEf1J/+/5uDJxZ7Gl6YvAjfyA1twMS8BVMuLTZvMtwhoju8wWckGRfmw7w3RfP
-# dHx+murd7uk8h7Iagew+olrVxshJ8sRz52JhzJBPUzgHbzdFu+JWHi9JS73iBd9R
-# P2zOy05dLRyTLWitW2ofGHkolMJdi6H5LWaYMIZKcJyhtLdUW3XHOjFD/CnzvpW3
-# JozisjY/zEFO45WJRY307NSi8Q4ApOPvWR/iwyLYLTSDeS5BibwpDDvzZu1r9WKN
-# UI62DKIbzVa6kOfFbjIhXngLu5OHjnA6D0tKY3mEQWv2KLxvFUyu1wGKJPE=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMjIxMzE3WjAvBgkqhkiG
+# 9w0BCQQxIgQgHlrGzdqPV0MaolclsITnA90YIqKIZoRaGKBigCUS1/swDQYJKoZI
+# hvcNAQEBBQAEggIAZpulQJY7hIxkHo35ZwfFhj+enGGOTjCB7FpMsiG2SI4MI36W
+# KkG+7wwOZOZzQponS8zDoS+DGjLVPkw+olWpzjNKpx1RbpVYDm7sG9gVfJpZ/Cu4
+# 5BeLgM7fAcxICjkFalcXwlCi712iFM7+TVip3wAcM9ArayPxP3oE2wi8BdFbiHuM
+# eRrC0k+E5pz1ZbSBnWAAQMDvsgZ5xAeRs7UV2Em97obBzP24GudlzJG516NhuwdM
+# x5ustLp+ktWk0YkzPKO5UE34/RQjKNFMniHTqFviawCQ0cyKPCVyWLn2QIvibexT
+# c/qBMBXYhT8RlVbUJA6+uO7ARXErOxBvss7+B6aQGIW+eE1MgRkRT12u7sC5jG4l
+# fAsYYArFhchEcG1KeYofiN74UPFxBPKejxp03dSUlwMmLY4GHfFPbrwnUxQkoUFl
+# KgozHL/xy9A1goULKWwrTCIf5rdHAh1LDQpQ3ATnrwQHWl8749QHul+xOjxUZRe9
+# ZBEZo6NNEGSxp4qMDWZPcRbAwKyFqD/I0ISAnY7L09srFsnEhjkvNPPGOrfO6Lfu
+# tRM0cfOfTAEzUMVxe6+OXuvU5sVwW4yv1e1ep40ogVYtdiR8diPMirA2I5Ndoflq
+# cX+NeBnQt3PwupAx4BWl5uOlCQ1x3Y0iUcr4oYwmnBWc43vdtDJ+Ra/odm8=
 # SIG # End signature block

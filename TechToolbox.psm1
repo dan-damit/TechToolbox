@@ -220,7 +220,10 @@ else {
         Select-Object -Unique
     )
     if ($configuredFilesystemRoots.Count -gt 0) {
-        $env:TT_AGENT_FILESYSTEM_ROOT = [string]::Join([System.IO.Path]::PathSeparator, $configuredFilesystemRoots)
+        $env:TT_AGENT_FILESYSTEM_ROOT = [string]::Join(
+            [System.IO.Path]::PathSeparator,
+            @($ttDefaultAgentRoots + $configuredFilesystemRoots | Select-Object -Unique)
+        )
     }
     else {
         $env:TT_AGENT_FILESYSTEM_ROOT = [string]::Join([System.IO.Path]::PathSeparator, $ttDefaultAgentRoots)
@@ -237,17 +240,7 @@ else {
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Select-Object -Unique
     )
-    if ($configuredRoots.Count -eq 0) {
-        $configuredRoots = @($ttDefaultAgentRoots)
-    }
-
-    $localDataRoot = [System.IO.Path]::GetFullPath($script:TT.LocalDataRoot)
-    $moduleRoot = [System.IO.Path]::GetFullPath($script:TT.ModuleRoot)
-    $comparison = [System.StringComparison]::OrdinalIgnoreCase
-    $isLegacyLocalDataOnlyDefault = $configuredRoots.Count -eq 1 -and [string]::Equals($configuredRoots[0], $localDataRoot, $comparison)
-    if ($isLegacyLocalDataOnlyDefault -and -not [string]::Equals($localDataRoot, $moduleRoot, $comparison)) {
-        $configuredRoots = @($localDataRoot, $moduleRoot)
-    }
+    $configuredRoots = @($ttDefaultAgentRoots + $configuredRoots | Select-Object -Unique)
 
     $env:TT_AGENT_ALLOWED_PATH_ROOTS = [string]::Join([System.IO.Path]::PathSeparator, $configuredRoots)
 }
@@ -333,8 +326,8 @@ Show-TTBannerOncePerSession
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCoZ7QcA/2nlRzY
-# d3KPk6wr11nbUK5NELSWCvPsiI+N66CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDk3jpAaejVKBQ4
+# Ry8R4X6i4eMTBqjgD/ZU7grvetfs/KCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -511,31 +504,31 @@ Show-TTBannerOncePerSession
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAt
-# oCXyDxev4G5xKLBJLAsE7joSL1iSg9Mlbmk09XRbjjANBgkqhkiG9w0BAQEFAASC
-# AYCrHCx6whmqOzlcGfjLRh68hZ/qF3Y4dK6GBFx4anb2YtA8QmFoILOsFIgGHVR5
-# yO5o4c2eWzka+PlKv9jhH7EMTKycZkax9MCwlZu/SSjho5gNAeQr0V+J/b7RQ3vh
-# zNTuFRGL7VpeXq/1O/va0769jDqAzm1OCL9HlgQApk1BQejpFC9mp1hlvVuyIJ2J
-# rJ8/ekdcSCqNfWxXthw9DoegkInNr5EFh++KtmpiM+21gyp6Dwh83PAoQKotatie
-# Btb4OVSevgPwIxLFO6T0CYJyIOE5VX57RsN7wSat02zm0/Q120HEQB4fEP88IO9X
-# 8SlGlZvydMmHQVx8Wkfwl+WdYeHPmr+KDbekosw3z2AbpFucGwTE3/+cLCdTl2UO
-# oTZ5tXaEg2DIZb4EoNbZ23TLngYlPQ+PznKdp9FV1vM+8t92Pd7JZcw8LcJxTpDF
-# kWWOUmf6DWLxYTGTesVaEXzeh3/p3JVOTJc2ZhbsAoAlsO3et54wgtscj+h+nlQg
-# mbOhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAw
+# ChoJT+EBZg+PelPZmkQ0SWoqBgqWEkGn4im/lA7M6jANBgkqhkiG9w0BAQEFAASC
+# AYCWrH1WpFpZ/HmtXY1FHnCHRifaIHJyfSfpzGGS1pi6wAszg8TUA2IhzUK41Vm0
+# PQ2lUjUt/ltGI7pNyiN7NlZKQ3/uWPJQrdbzS3rJra4HeXQBaqdTK6z/k/gcjJHe
+# 5ykXOUjXJagEebTzw3GTpIfqR3eXU0wQEXoCM3Ne1N+lnA98APoRjv44JD2Tku53
+# DqgbE1Cuwu4vMJqoA6xQOWPMOVu/6vTn7dlU4XHWlUCLVtJ09rrY2Ze0kiQ676ee
+# 6TApzPTdzaAYjQBUsVkE+lgQhnRLEqf1QJac9BaPVkC6QOqIRqTOpQPhCJKJhwiS
+# Sh2EwoYlVZ4FznchL3EAnkH0g1fQm7pEDftZswC13wAfpQXniYQd4W1ea97nWpvp
+# 09FjBpx+QDZkgJANwqEOWnC+x4aaS29G1rJMmDE2uigiJLtT4kktTGY00kGCPiA4
+# 2e4B0UZ51PVgL4iilA8AQLJxLOX/2nUxRcE72YG0aLRaXk1CFtQuU98mhejUXVE/
+# J0yhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMTcyOTI2WjAvBgkqhkiG
-# 9w0BCQQxIgQg/mDtCh/N+uffvJ4Z52mYwlnRK8/0Yccw6uS9/ab2vzMwDQYJKoZI
-# hvcNAQEBBQAEggIABhlm2fD0wz3WPpVUwtpEtGePYtTquXBX8A/w84bivG/WYulg
-# sNbqVlBGV7QmsvyYxiS4r398oy/0DaoPFPqVGDf3n4rPRkJFNhPbSCvhhY2lKrcV
-# UFRjPcClCDZPUp52YTfbpGmcpDL6lVvIVT9kbCApJE1XoQ0oYZ7Q6hnDE/3O9i2V
-# KfBC7xDhR/ZdT3BGkNXSVpVMfeOzhNmAuvtPdjTIpXq0si4LnAqLJ3r513+w3Zao
-# T/DvqT69FVkETUyNRkBCxC2rcDiPiFHg1X9cct1SocsCRzX9f8vIBJad1mJvNa/V
-# T43/bZMsDHl0i0GRSqGJvf8w31oBx5/4RbCUQ4zb1PCEwaURKQy35Wjgs4zNT2Z/
-# Wbs4cPZqr/OODsqrHgUKl8xMJbQzAXR5qO7X6scD7SQXoO1Y0PQa9Lzk1UgpHr3h
-# 4XUc0NSWqQav0UEoLx9+gwvMU87Ml0yH8z2c0Wfeq0zLyEWlF37VO4gsv5MD8+Qo
-# TZ93ehKG7f5U8AqvZEDZViCKyha3gjj8a6vg+7Fnsxip5be/Nj7M/7nM1dtu27CN
-# QzhymAGVpt1uv7efRir/OuVtDXPnjjZ7mbOdPy7vZL0V2O3xW5KRYLV5AYR7Sx2h
-# jS1uUGvz98mRMGO/75z6GAafUIOL1k/cKaKOlNXFpTeFzIdFc03lSVzMkvc=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMjIxMzI0WjAvBgkqhkiG
+# 9w0BCQQxIgQguBJdrEXS6CVsM0jMbRExGhpTQEEdX10z23WQhAzN28wwDQYJKoZI
+# hvcNAQEBBQAEggIAPF9hqm7Oaro3SC0N0EO5TnLwW+uGDNO8TPvSHCwGfR8cojdj
+# 4Avhau7fYdfZ5HyK12EmuZzv3hrTc3KNA3n7xIn22kVosa7wsBtudRv2aMiGp6kb
+# 7hNzP0vC8ihUv6ZdT8dnyQNiozIShMXZpO2sD7US6iP5EZcJ00JS3T586ezGnEXl
+# J8Bhpqsg27Sy5P83yhoL7f+kjOzwfMqT8cvQacrFVrFnFlpM7W4E3x9urJpsrhOC
+# 2jfo7AlHvWPprfRVOJsWbiJieTTL/zzsPat+SzrLJBL7R7iPAspTmlV7Rd5CVHsJ
+# nQGJRs4a04yCw7h1zV2TXi+Zb4UQo+KQltD1nC+4YxzjfIBcp+sj9IVlUkg9c/6V
+# Ey5oUROUgpiPh2elhCK1T8SDSE8CwGKOBkOclz4UVPQsH6rAnhWORTq/YfXq4YgX
+# DPBp72C5907/ndTe3bWY4iXp1TUxUydqNCvKiv9yBi183qeB+dZmmbIr0y2knX5w
+# SRrGIVkpgsg609bX4i5G4JcE3RI2gcpk5fy5tGHJUkdZv1Td2fo3sYc8O7JjIA5a
+# ae5mizFQpiXcfCY9i/B55Ja1a953W9AA1eR/CbbtgpPUZXz5lxF1Ouv+Vr1djpzp
+# OLHy/aupdiQeSbTBzjvjBJZ/pQCngGggVSKXhdEubtpqSOe2N0f+BherDYU=
 # SIG # End signature block

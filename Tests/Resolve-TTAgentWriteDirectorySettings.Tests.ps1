@@ -68,29 +68,34 @@ Describe 'TechAgent filesystem root authorization composition' {
         $settings.FilesystemRoot | Should -Be ([IO.Path]::GetFullPath($authorized))
     }
 
-    It 'continues to accept valid absolute roots while requiring explicit authorization' {
+    It 'uses configured authorized roots when a stale filesystem environment root is narrower' {
         $root = Join-Path ([IO.Path]::GetTempPath()) ('tt-absolute-' + [guid]::NewGuid().ToString('N'))
+        $other = Join-Path ([IO.Path]::GetTempPath()) ('tt-authorized-default-' + [guid]::NewGuid().ToString('N'))
         $env:TT_AGENT_FILESYSTEM_ROOT = $root
 
-        $settings = Resolve-TTAgentWriteDirectorySettings -AuthorizedPathRoots @($root)
+        $settings = Resolve-TTAgentWriteDirectorySettings -AuthorizedPathRoots @($root, $other)
 
-        $settings.AllowedRoots | Should -HaveCount 1
+        $settings.AllowedRoots | Should -HaveCount 2
         $settings.FilesystemRoot | Should -Be ([IO.Path]::GetFullPath($root))
-        $settings.Arguments | Should -Contain ([IO.Path]::GetFullPath($root))
+        $settings.AllowedRoots | Should -Contain ([IO.Path]::GetFullPath($other))
+        $settings.Arguments | Should -Contain ([IO.Path]::GetFullPath($other))
+        ($settings.EnvironmentRoots -split [IO.Path]::PathSeparator) | Should -Contain ([IO.Path]::GetFullPath($other))
     }
 
-    It 'does not fall back to current directory or broaden roots when no authorized filesystem root remains' {
+    It 'ignores an out-of-bound filesystem environment root when configured authorization supplies roots' {
         $env:TT_AGENT_FILESYSTEM_ROOT = Join-Path ([IO.Path]::GetTempPath()) ('tt-outside-' + [guid]::NewGuid().ToString('N'))
         $authorized = Join-Path ([IO.Path]::GetTempPath()) ('tt-authorized-' + [guid]::NewGuid().ToString('N'))
 
-        { Resolve-TTAgentWriteDirectorySettings -AuthorizedPathRoots @($authorized) } | Should -Throw '*no effective filesystem roots remain*'
+        $settings = Resolve-TTAgentWriteDirectorySettings -AuthorizedPathRoots @($authorized)
+
+        $settings.AllowedRoots | Should -Be @([IO.Path]::GetFullPath($authorized))
     }
 }
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCXBmEJdHPSEG84
-# zi+OHBapkFVKLAopPdTFQcmVwnnRTqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDL0amXUF6gGIKL
+# hfLCPzvCggRF0xY7lL53iWjoDOMAzaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -267,31 +272,31 @@ Describe 'TechAgent filesystem root authorization composition' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBF
-# qNhuPAhdY+mFElxZsUAdLE7TbllBxzYpb2xvILFqazANBgkqhkiG9w0BAQEFAASC
-# AYCEGhcnJ9aUy63jg+eTle64BVOOky5D89VWDm51Ltimm8s2SkvJuOWLOrIa1T4F
-# XnVvCwFo1I2NnOygB8QKGQGx6h/lEPq3WiyaIfCn6BIy0yjPPvfdfnVm8ssZHDWE
-# gPhIsscEeJcZcPXxiMeJMIlQr+eAYIZp7KZJj9sFyCbRbQufOBcF0I8FcIVkN4JA
-# zvA1HGwJazPbGYThYjhGzMXBT+aE3auhNzjx2XjsHdQ7Bqxbv6upp4gGgv2xZu0B
-# QfL3Tx0hi0TBDwPsRnzBSN8lL+/R3csv6Oae0ThldRnlFREbsGy8iRrFB4uUYtwj
-# gpredoMOcaWPJ5gJ1hRm9G0N+/vBooktGKNTeRtyJ8mu/VMmctPFacgoOyUffy/Y
-# wb1mZuvyroIF9w4B5X+ozFp2b3VeUWWZr0dUfvVCiMjwJCQceAFDM4uDnMsfbQLJ
-# xoKjSfIzkB9xrF39KhXgzFIi3x1fh5h9CpWMntcWxXVZurjAqUxMm/64/jmVEI7h
-# mkahggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBf
+# f0/AeOt+OsMDhhe0MonMtVO8d28FmxqmdKmhixtDHzANBgkqhkiG9w0BAQEFAASC
+# AYA7pVYCJJdWEMZ1RwxF31zlIT1CjHRPdNNUlSH1o9JC7JIHv0UG0mgV/Qx6h6gE
+# CzME6EDACIP2zd5DraEEsTn0RnJN1wQd0L/AlIw3RYimHOjC7Sdgq/5iRaSx7Tjx
+# C0URN4gpglzQNAtAcW3IKzxaeGzKBZJzu3ILhrdx1penJ4ug+S3tFIi4q+RTRe/R
+# MUbBFTOEMavmJxheaecMXHWCy9oEok/Z3DNLROhaCBX2zci7Vhq0SoqV6m0izIBV
+# 0/KspeCwdCOaTS86toTaOF3Qg2KVirYp5s+YL7BOqKnnC5wIup8TDhjYSvwtcPs8
+# qKSBYavkuWX3fmdWzi1ImS49hxCVwggCgHoYDe9nM/vZfbaGVCLvXbm+A1KpCCYG
+# rDMAL7p+MdD/+dfgOKAWlXGIed3wSLo/DPzfG9k33gEAtwUVYRz3Oj5etaI9DdZW
+# E4dVpdngvdMhCiHng1AzasuqL53O4WhXXoA8tLeQsROFY7I3cxVWva8pSyjFamw3
+# sIuhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMDUzNzQ0WjAvBgkqhkiG
-# 9w0BCQQxIgQg46R8F2wxfjISYEajDnESr3DyxwFgKFDidBSWq2OjG6IwDQYJKoZI
-# hvcNAQEBBQAEggIASwfhwXdVw1p5dTHtAXSFLYhOdeyUGOnH03I9FSnKwAx2KrIV
-# OwUmcGuTJjCaTR6irOlq/Rx/2/UTuT9qeXLZpV2CjaukEBpSFxOIdFocK7wXxD8V
-# 5/MV6XyYDdIn4Cc/WBU5/tlzBRNuzXTHRFPmcdd40Tw31YmJMJbGlEYGCMOgZ7qT
-# yciNWW5QF6ymiuOYOixiXKwGLs+JOt/556NqZU7egn+fu0t0W0Z3xk1bmMaRKgwl
-# MjnzXpTA/Hg8jMjPp83tJ5Nx9btSK52k3c1K198Hd9xcXLsqZ7aT+J9xuOiMNv1T
-# TLQZ2r5n73ydW7bTTSjH8IzdLncd/U0PVQNZpDpHdVya+Cd0jRi9gfhNOiYKW8EY
-# HZhyHuFf48tcoqWlq9MqZb1Og1MNcZUrM4QbIXncCF5VtE8XO4pOr6IqOyA3Fqf3
-# wbTjm45CICxeOt9jp5FW1XpuvUaHD/OthOp1LL1EisuO+ifLWTk0ZSEFG9mlvyT9
-# 2wcIJ0eM25fZGFuCW3MoG/cpakBkgl58K85zbqzuVRoa4EyH6F7ZewY2fw4leyBh
-# JYSANAq19rLE7wF0obQ/qt9gbsEGDDO6lEIZ88ob2CnmAu55GKPppLJBH6OZFLdV
-# jsPtuZqNv5bQQDWWOA+nPHdnsnyClrVK7jIYZ7Bozv5y6W8DxZstbmXrNV4=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMjIxMzIzWjAvBgkqhkiG
+# 9w0BCQQxIgQgOvXkjfb1Oitzko87y7GOgIWKolc0gQrWfUxwtk79+7wwDQYJKoZI
+# hvcNAQEBBQAEggIAXL6ygNJdJsAqD7M6u/DHIopJkUNZ/KiEtISb1wssZ8GU7rhr
+# Ym9GEMwO+GxLSGQQwW0tzSumM7EbZUimlcnnOsJkbtXvVRjNs747tprIU8VaoxAF
+# YgsBWmBC8ph0j4P4L1yKOp1RMzhvSJnuxr8Ef130pwFtL7ZA1veXmLAsQkClHAa7
+# 5oq5UXaFfjz6xtVXQUd9IBebEPSuiF6S6CNbgAZjTfv/iu5J+rhFfl/McuAX6b9L
+# LMewYV0ux+wohoeTVRUfCYwGvCgOLy+j1z2FA2x42inGXYc5FiUBiKt3nSF4D5oC
+# KKgHpBcglYBDEuVYmfe/0Lc2TZ1+CpLGgH4dSm7rDOiSX9RRvo2tVH/aLnDFZ9vO
+# +Wv7VZlCi8TNkkLdiuXAUnxfCjRgrIGvcuWPOLTLYCWv9tA73ffjaO6KZemzyTdV
+# phCiPy7l5bbG81EYnfVsCXsNnvIPsljZSXanGNwTFZSMsPFbv7rzH1Vk3JAnA+4z
+# v6Y+K0To9e+OP8B5A3ggSWK3xIY0WOaq3Y3HZ7RzO4Kt3lsk3oG5g0yce1oNV+iP
+# rVBd1HCELm6mmSK6UVSIDnW/GMR+E55owMbA7W1U73KwFvpvOMRjUIHjJqU9aUdH
+# H7HpAruoLNs4cyXkk8xess0MVE9UyQWWHCoCuree3C8FyJZRvXsobEATsOk=
 # SIG # End signature block
