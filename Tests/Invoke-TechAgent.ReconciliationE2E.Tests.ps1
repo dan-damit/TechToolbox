@@ -531,7 +531,10 @@ $local = Join-Path $root 'local-app-data'
 $env:LOCALAPPDATA = $local
 foreach ($name in @('TT_Home','TT_LocalDataRoot','TT_ModuleRoot','TT_LogsRoot','TT_ExportsRoot','TT_AGENT_FILESYSTEM_ROOT','TT_AGENT_ALLOWED_PATH_ROOTS','TT_AGENT_LOCAL_MCP_ADAPTER_PATH','TT_APPROVAL_RESPONSE','TT_AGENT_APPROVAL_RESPONSE','TT_AGENT_LLM_API_KEY','TT_AGENT_RETRIEVAL_CONFIG_JSON','TT_AGENT_SEMANTIC_REBUILD_OLLAMA_ENDPOINT')) { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
 $env:TT_LocalDataRoot = $env:TT_TEST_WORKER_LOCAL_DATA_ROOT
-$env:TT_AGENT_ALLOWED_PATH_ROOTS = $env:TT_TEST_WORKER_ALLOWED_ROOTS
+$env:TT_AGENT_ALLOWED_PATH_ROOTS = @(
+    $env:TT_TEST_WORKER_ALLOWED_ROOTS
+    [IO.Path]::GetDirectoryName($env:TT_TEST_MANIFEST)
+) | Select-Object -Unique | Join-String -Separator ([IO.Path]::PathSeparator)
 $env:TT_AGENT_RETRIEVAL_CONFIG_JSON = $env:TT_TEST_WORKER_RETRIEVAL_CONFIG
 $env:TT_AGENT_SEMANTIC_REBUILD_OLLAMA_ENDPOINT = $env:TT_TEST_WORKER_EMBEDDING_ENDPOINT
 $env:TT_AGENT_LLM_API_KEY = 'scenario-a-loopback-key'
@@ -573,7 +576,10 @@ try {
 
     & $module {
         param($counter)
-        $script:TTAgentDestructiveApprovalResponseSourceForTesting = { $counter.Count++; '1' }.GetNewClosure()
+        $script:TTAgentDestructiveApprovalResponseSourceForTesting = {
+            $counter['Count'] = [int]$counter['Count'] + 1
+            '1'
+        }.GetNewClosure()
     } $approvalCalls
     $prompt = 'Implement exactly one governed durable launch for the synthetic Scenario A snapshot reconciliation plan using the isolated semantic reconciliation tool. Expected output: return SCENARIO_A_LAUNCH_OK after one durable launch. Must not expand authority, select additional sources, perform publication, or wait for worker completion. Use the reviewed plan and return the exact launch result.'
     Mark 'invoke-started'
@@ -611,7 +617,7 @@ try {
         Runtime = [string]$runtime; ExpectedRuntime = [string]$expectedRuntime; LocalAppData = [string]$env:LOCALAPPDATA
         LocalDataRoot = $localDataRoot; ProcessId = [int]$status.ProcessId; RuntimeStatusPath = $statusPath
         RuntimeStatus = $status; RuntimeStatusRaw = $statusRaw; InvocationOutput = [string]$invocationOutput
-        ApprovalRequestCount = [int]$approvalCalls.Count; Postflight = $postflight
+        ApprovalRequestCount = [int]$approvalCalls['Count']; Postflight = $postflight
         JobStatuses = @($jobStatuses | ForEach-Object { $_.Status }); JobStatusPaths = @($jobStatuses | ForEach-Object { $_.Path })
         JobRoot = $jobRoot; JobInputPath = $jobInputPath; JobInput = $jobInput; JobStatusRaw = $jobStatusRaw
         WorkerProcessId = if ($reconciliationJobs.Count -eq 1) { $reconciliationJobs[0].Status.ProcessId } else { $null }
@@ -943,8 +949,8 @@ try {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDcgZ+aeHxJgFzG
-# c6qxXKfObImOd0WITTx5BR2mDDbqLKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDMHLOCCabbFw2d
+# kIMV07mgd+brOSBlpYG6OEbbuxX2c6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -1121,31 +1127,31 @@ try {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCC/
-# Lr3g190Gwt/E1GNo3/3jY/7p6nA3cdJDBrJH5LLDWTANBgkqhkiG9w0BAQEFAASC
-# AYAt9Prvs8v+nzn0yLNMl6m56YCrH6vDNP0GD4D+w6jsnE9u+TA5Shu11BG7IVkH
-# L/2pD/iELQpKNLBn0Kye/Uj6XHp73tfAhT+3ykgTxGZttkqwgJt6YYlaOo5SZJ3n
-# 11ARXjvM5EpHSBUGaMETn8zDr52cvgvDpf/l6D40ur3ypaREv4193/Ve4y18rkou
-# Tn0PAyZYz84IEaHCU2k3i0plEfemneQgIRwRVlC6aDePlxgxyFIpW/OtcI6AxccN
-# tgS7ji0YKD0T8J2wNijbm1IeEhGOkkwWxJM8am47ik5Qo3ISb36mnVWIBsvZMWLu
-# QJk0+Ufmy+bmP/Wodnh6KS9CZTIyK/Givi4iKO9Xwd/iFvms2ZlukFaGz/2cMbTs
-# IbWQAWPxmoLe72FYXsTOOFupxW8GRFG0vwyIzGPQ2zhss6Uk8dvWNuVQ802mFVGW
-# RRB9FS+BCo/lf3RW27NVykvvujU4flfqvp0b3frcoBttm/1xOhRIXaJOjzvyKjBn
-# WWOhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBt
+# PXu5zQJ2GXPmbi9cIswXMX3lCxkAJq+HK/V1Y8k9sDANBgkqhkiG9w0BAQEFAASC
+# AYAxwEZ/XQZ50SVsxL+Ywel1x6sQx4wdLVd69zwi2FBYOqXDxXLs6ZrG7PgOUsTL
+# Upw/Si3uafMXMtdTrm2aqPzy2cZbSTPKUnM0em0/ObYVKDNpPSWLeed8lmGY5ADi
+# uX4KO86IvVSRNWzk6OizACwLnO05Xzol5xIyVlMHHvS8KNVzvgHQEcTMRXc8k8+g
+# WFopM1615byxOJUyVra9S/WNmgr6Uu5DUC3sLYv3CYN4OP/hyjvR4u8Xmm1QPxOY
+# nN+T31fRq4d1FV3MyZwtbzUgMtMMOYMHYKJI5FjMZ/QwvG/G0ODwqqGTsoMhcZZw
+# ckB/gyehq0RwFTcl/QZeXsQ1EvnBsyK2afczvDALfObrEGtkMhEcRxkxcm028qN8
+# rCcelhT2Bw00ty20Yy5XVKzRTkbgaNdb3VBByXLeOJUJ2JO+SEjEkwlghMJZy2m3
+# c5r2sKKu/dkp+mOe7OtE1KPs5o7nZm4JBV5GsUhbbrx7F6tQB8vI02NjNbruqVxm
+# JxehggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTEwMDMzMjQzWjAvBgkqhkiG
-# 9w0BCQQxIgQgjc/LgNSg9fwE5NBHA7CaJd68J96GSBt+e6wp7dhT6ccwDQYJKoZI
-# hvcNAQEBBQAEggIAJePMDJ5zxFAGisvNZbmizZ/Uk5AJXtJy52SUU6VwuESzGbk5
-# rBZHjuFTxVil4ZrHCoCVaVc4hnlXt5pIxoa604lDTfhj1kBBs//46mIBJtA1qJFn
-# xP9sLmDEHHnBMsiY0qr8uO7WWrnIA18ufh1eM5es06amXdnUXKdbeoi/+sLwFJfK
-# 5kP/P6UacyKnabibvGpfjGi0mcADPiGDCAjuzFwHxI4yUEfR7aFzhDzI3fnUe0oe
-# 3R6LPbmfE3NVjzzyx3uEmg7D0LjcBQGTgR+oaq6nTRg/BLCaTMwEngjjCADPAV/3
-# Yoi/lrNgFNYu2VKvdf/hx/gZxAutxFO69WWM/zl5p7Mwsaj3+DA4nQiV+o8CiBEg
-# sSJ5OlU+ElOgxEiJ1gv0+F7zVcU6HAG0KW8oN6+1VS7gsMANgzHhHbV7lD4bMdgq
-# YEYTSlu1Yfae6Zp3bS4dc0hsHcYysEE2Oy2DLzFaJ0BYxox2zUWmNy+4kbHANrti
-# kAfSmPmWAbvlK3trjKjhtS3NULMvj8Ye8/UJ3bTRyLK8ecfQ80bJlkJNaxQv2Q9f
-# +JmZbEMW717fmebBGUZJEbdlBnSGfC7h9CRF9yhu6pqZyGeB/SoKg1tQVGdT1eTC
-# 7Ls/3bFZERT67lAokvp96IshTBXtPSVmVVf5Oo/9ymqvcDUKpsFwFvlC1ck=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMDA1MTIzWjAvBgkqhkiG
+# 9w0BCQQxIgQgrCTq5STbQiQRe9jTDWYHPTM09AA3yyQBy6CPWnJpkRwwDQYJKoZI
+# hvcNAQEBBQAEggIANzQFfhebHBuvuxTswPdChMM3dnHCH0WpFqa6WEJfo0VrlU8A
+# 2NUXtpyg5iY11iMt8GUKj/X5tppngcJnRcUP4T93X8Aw0XxUpAs6FClQQSGxqxKK
+# YxNh09ZU7Bq94mMxcMHpgFz+wJJu+XTux8/w+oQbWrxRK+9h+keUAP4WP/a5adhL
+# hyuLrJ/UM/T9qDe781l2gjNrYD5mTBAZ/6y0ZIGOJZZhzIk6qrswGlNzALW5PC/G
+# pLbsJYGMj0NVAru3+QoU6zfIwFehASvpWO5tdgn2wzOzPMY12yUFq4Ma6tw4XyW7
+# JMIfE5LAhLbRG/RS+HhlXCjIAG9m3Ha+Utni8bpYv6vHAdxrHivmufCesr6EkTf5
+# g7eZENpXg7krX4R1wK/JO8bn/ANhNYN/5xgKAGUa9Im5OBbMbzlvvNNrMVFtcAy6
+# ix2LAij2Hye0RX8mp6X01LrtOCuaOiImR2IIRiiqLaBUzTRvgRJjcLMQksdVE4va
+# oTkXzB35O8RXG2gkn5H/Ql3tHwoPmYcTXRCr9GzsYYymJUfEtJZxCqr1Zv8ulYac
+# 8AB8sMlhjr8l6VRmISX1zKWM8dW42WXTiS9ZHfurbmEd5EueMgqWOJNJIJymBAMs
+# wcJVzNasDwo5HouoRR0sRKh5OXEgabKqh+TnSt22usebwoMHevpVHv/7yXM=
 # SIG # End signature block

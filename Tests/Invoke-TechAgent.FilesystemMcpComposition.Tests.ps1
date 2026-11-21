@@ -1,71 +1,134 @@
 Describe 'Invoke-TechAgent filesystem MCP root composition' {
     BeforeAll {
-        . (Join-Path $PSScriptRoot '..\Private\AI\Resolve-TTAgentWriteDirectorySettings.ps1')
+        $script:compositionPath = Join-Path $PSScriptRoot '..\Private\AI\Resolve-TTAgentWriteDirectorySettings.ps1'
+        $script:invokePath = Join-Path $PSScriptRoot '..\Public\AI\Invoke-TechAgent.ps1'
+        . $script:compositionPath
+        $script:invokeSource = Get-Content -LiteralPath $script:invokePath -Raw
+        $script:compositionSource = Get-Content -LiteralPath $script:compositionPath -Raw
+        $script:module = Import-Module (Join-Path $PSScriptRoot '..\TechToolbox.psd1') -Force -PassThru
     }
 
-    It 'fails closed for Observe-mode composition when no explicit Agent roots resolve' {
-        $environmentNames = @('TT_LocalDataRoot', 'TT_ModuleRoot', 'TT_Home', 'TT_AGENT_FILESYSTEM_ROOT')
-        $originalEnvironment = @{}
-        foreach ($name in $environmentNames) {
-            $originalEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
-        }
+    BeforeEach {
+        [Environment]::SetEnvironmentVariable('TT_AGENT_FILESYSTEM_ROOT', $null, 'Process')
+    }
 
-        $currentDirectory = [IO.Path]::GetFullPath((Get-Location).Path)
-        $homeFallback = Join-Path ([IO.Path]::GetTempPath()) ('tt-home-fallback-' + [guid]::NewGuid().ToString('N'))
-        $moduleFallback = Join-Path ([IO.Path]::GetTempPath()) ('tt-module-fallback-' + [guid]::NewGuid().ToString('N'))
-        $localFallback = Join-Path ([IO.Path]::GetTempPath()) ('tt-local-fallback-' + [guid]::NewGuid().ToString('N'))
-        $server = [pscustomobject]@{ name = 'filesystem'; arguments = @('unchanged') }
-
+    It 'composes a tokenized LocalData root to its canonical concrete path without fallback roots' {
+        $root = Join-Path ([IO.Path]::GetTempPath()) ('tt-localdata-compose-' + [guid]::NewGuid().ToString('N'))
+        [void](New-Item -ItemType Directory -Path $root -Force)
+        $oldValue = [Environment]::GetEnvironmentVariable('TT_LocalDataRoot', 'Process')
         try {
-            [Environment]::SetEnvironmentVariable('TT_LocalDataRoot', $localFallback, 'Process')
-            [Environment]::SetEnvironmentVariable('TT_ModuleRoot', $moduleFallback, 'Process')
-            [Environment]::SetEnvironmentVariable('TT_Home', $homeFallback, 'Process')
-            [Environment]::SetEnvironmentVariable('TT_AGENT_FILESYSTEM_ROOT', $null, 'Process')
+            [Environment]::SetEnvironmentVariable('TT_LocalDataRoot', $root, 'Process')
+            $server = [pscustomobject]@{ name = 'filesystem'; arguments = @() }
+            $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @('%TT_LocalDataRoot%') -PolicyStartupMode observe
 
-            {
-                Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @() -PolicyStartupMode observe
-            } | Should -Throw '*no resolved agent-authorized path roots are available*'
-
-            $server.arguments | Should -Be @('unchanged')
-            $serializedServer = $server | ConvertTo-Json -Depth 8 -Compress
-            $serializedServer | Should -Not -Match ([regex]::Escape($currentDirectory))
-            $serializedServer | Should -Not -Match ([regex]::Escape($homeFallback))
-            $serializedServer | Should -Not -Match ([regex]::Escape($moduleFallback))
-            $serializedServer | Should -Not -Match ([regex]::Escape($localFallback))
+            $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem', [IO.Path]::GetFullPath($root))
+            ($composed.arguments -join ' ') | Should -Not -Match '%TT_LocalDataRoot%'
+            ($composed.arguments -join ' ') | Should -Not -Match ([regex]::Escape((Get-Location).Path))
+            ($composed.arguments -join ' ') | Should -Not -Match ([regex]::Escape($HOME))
         }
         finally {
-            foreach ($name in $environmentNames) {
-                [Environment]::SetEnvironmentVariable($name, $originalEnvironment[$name], 'Process')
-            }
+            [Environment]::SetEnvironmentVariable('TT_LocalDataRoot', $oldValue, 'Process')
+            Remove-Item -LiteralPath $root -Recurse -Force
         }
     }
 
-    It 'composes an explicitly authorized Agent root normally' {
-        $authorizedRoot = Join-Path ([IO.Path]::GetTempPath()) ('tt-explicit-agent-root-' + [guid]::NewGuid().ToString('N'))
+    It 'grants only a narrower explicitly authorized WriteDirectory root' {
+        $authorizedRoot = Join-Path ([IO.Path]::GetTempPath()) ('tt-agent-root-' + [guid]::NewGuid().ToString('N'))
+        $narrowRoot = Join-Path $authorizedRoot 'narrow'
         $server = [pscustomobject]@{ name = 'filesystem'; arguments = @() }
 
-        $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @($authorizedRoot)
+        $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @($authorizedRoot) -WriteDirectory @($narrowRoot)
 
-        $composed.arguments | Should -Contain ([IO.Path]::GetFullPath($authorizedRoot))
+        $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem', [IO.Path]::GetFullPath($narrowRoot))
+        $composed.arguments | Should -Not -Contain ([IO.Path]::GetFullPath($authorizedRoot))
     }
 
-    It 'continues composing an explicitly authorized narrower WriteDirectory root' {
-        $authorizedRoot = Join-Path ([IO.Path]::GetTempPath()) ('tt-explicit-agent-root-' + [guid]::NewGuid().ToString('N'))
-        $narrowWriteRoot = Join-Path $authorizedRoot 'narrow'
-        $server = [pscustomobject]@{ name = 'filesystem'; arguments = @() }
+    It 'fails closed for an out-of-bound WriteDirectory and leaves server arguments unchanged' {
+        $authorizedRoot = Join-Path ([IO.Path]::GetTempPath()) ('tt-agent-root-' + [guid]::NewGuid().ToString('N'))
+        $outsideRoot = Join-Path ([IO.Path]::GetTempPath()) ('tt-outside-root-' + [guid]::NewGuid().ToString('N'))
+        $server = [pscustomobject]@{ name = 'filesystem'; arguments = @('unchanged') }
 
-        $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @($authorizedRoot) -WriteDirectory @($narrowWriteRoot)
+        { Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @($authorizedRoot) -WriteDirectory @($outsideRoot) } | Should -Throw '*outside the resolved agent-authorized path roots*'
+        $server.arguments | Should -Be @('unchanged')
+        ($server | ConvertTo-Json -Compress) | Should -Not -Match ([regex]::Escape($outsideRoot))
+    }
 
-        $composed.arguments | Should -Contain ([IO.Path]::GetFullPath($narrowWriteRoot))
-        $composed.arguments | Should -Not -Contain ([IO.Path]::GetFullPath($authorizedRoot))
+    It 'fails closed for unresolved allowed-root tokens without converting them to relative paths' {
+        $token = '%TT_MISSING_COMPOSITION_ROOT%'
+        $server = [pscustomobject]@{ name = 'filesystem'; arguments = @('unchanged') }
+
+        { Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @($token) } | Should -Throw '*unresolved environment-variable token*'
+        $server.arguments | Should -Be @('unchanged')
+        ($server | ConvertTo-Json -Compress) | Should -Not -Match ([regex]::Escape($token))
+    }
+
+    It 'fails closed in Observe mode when effective filesystem authorization is empty' {
+        $fallbacks = @((Get-Location).Path, $HOME, [IO.Path]::GetTempPath())
+        $server = [pscustomobject]@{ name = 'filesystem'; arguments = @('unchanged') }
+
+        { Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @() -PolicyStartupMode observe } | Should -Throw '*no resolved agent-authorized path roots are available*'
+        $server.arguments | Should -Be @('unchanged')
+        $serialized = $server | ConvertTo-Json -Compress
+        foreach ($fallback in $fallbacks) { $serialized | Should -Not -Match ([regex]::Escape($fallback)) }
+    }
+
+    It 'uses the same production filesystem composition operation from Invoke-TechAgent' {
+        $script:invokeSource | Should -Match 'Compose-TTAgentFilesystemMcpServer\s+-Server\s+\$serverClone'
+        $script:compositionSource | Should -Match 'function Compose-TTAgentFilesystemMcpServer'
+    }
+
+    It 'resolves tokenized allowed-path roots before child environment propagation' {
+        $script:invokeSource | Should -Match 'Resolve-TTAgentPathRoot\s+-Path\s+\$Candidate'
+    }
+
+    It 'has no public capture or diagnostic injection parameter' {
+        $command = Get-Command Invoke-TechAgent -Module $script:module.Name
+        $command.Parameters.Keys | Should -Not -Contain 'Capture'
+        $command.Parameters.Keys | Should -Not -Contain 'Diagnostics'
+        @($command.Parameters.Keys | Where-Object { $_ -match '(?i)capture|diagnostic|observe' }) | Should -BeNullOrEmpty
+        $script:invokeSource | Should -Not -Match '(?im)^\s*\[scriptblock\]\s*\$\w*(capture|diagnostic)'
+    }
+
+    It 'contains no executable capture hook or module-scoped mutable capture state in production composition' {
+        $script:invokeSource | Should -Not -Match '(?i)(capture|diagnostic).{0,100}(scriptblock|\&\s*\$script:|callback)'
+        $script:compositionSource | Should -Not -Match '(?i)(capture|diagnostic).{0,100}(scriptblock|\&\s*\$script:|callback)'
+        $script:invokeSource | Should -Not -Match '(?im)^\s*\$script:\w*(capture|diagnostic)'
+        $script:compositionSource | Should -Not -Match '(?im)^\s*\$script:\w*(capture|diagnostic)'
+    }
+
+    It 'does not introduce persisted, environment, prompt, or MCP-argument observation switches' {
+        $script:invokeSource | Should -Not -Match '(?i)(TT_AGENT_\w*(CAPTURE|DIAGNOSTIC)|settings\.[\w.]*?(capture|diagnostic)|Prompt.{0,80}(capture|diagnostic))'
+        $script:compositionSource | Should -Not -Match '(?i)(TT_AGENT_\w*(CAPTURE|DIAGNOSTIC)|settings\.[\w.]*?(capture|diagnostic))'
+        $script:invokeSource | Should -Not -Match '(?i)serializedMcpConfigForChild\s*\|\s*ConvertTo-Json.{0,100}(capture|diagnostic)'
+    }
+
+    It 'keeps filesystem composition limited to filesystem server arguments and returns ordinary composed data' {
+        $script:compositionSource | Should -Match '\$Server\.arguments\s*=\s*\$filesystemWriteSettings\.Arguments'
+        $script:compositionSource | Should -Match 'return \$Server'
+        $script:compositionSource | Should -Not -Match '(?i)ConvertTo-Json|Serialize|WriteAllText|WriteAllBytes'
+    }
+
+    It 'does not add generic PowerShell, process execution, or diagnostics facilities for observation' {
+        $script:compositionSource | Should -Not -Match '(?i)Start-Process|ProcessStartInfo|Invoke-Expression|ScriptBlock::Create|Diagnostics'
+        $script:invokeSource | Should -Not -Match '(?i)(capture|diagnostic).{0,100}(Start-Process|ProcessStartInfo|Invoke-Expression|ScriptBlock::Create)'
+    }
+
+    It 'does not retain observation state between invocations or tests' {
+        $script:invokeSource | Should -Not -Match '(?im)^\s*\$script:\w*(capture|diagnostic)'
+        $script:compositionSource | Should -Not -Match '(?im)^\s*\$script:\w*(capture|diagnostic)'
+        $serverA = [pscustomobject]@{ name = 'filesystem'; arguments = @() }
+        $serverB = [pscustomobject]@{ name = 'filesystem'; arguments = @() }
+        $first = Compose-TTAgentFilesystemMcpServer -Server $serverA -AuthorizedPathRoots @((Join-Path ([IO.Path]::GetTempPath()) 'tt-first-root'))
+        $second = Compose-TTAgentFilesystemMcpServer -Server $serverB -AuthorizedPathRoots @((Join-Path ([IO.Path]::GetTempPath()) 'tt-second-root'))
+        $first.arguments[-1] | Should -Not -Be $second.arguments[-1]
     }
 }
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCFuW12cpr+ar2A
-# NUQqzlPfZxNSmB0Z5Sj3mK60OeAa6qCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAqmLawjiSNbsTJ
+# PRLNx2aR31zMxyLdMEhVlcRm14C50qCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -242,31 +305,31 @@ Describe 'Invoke-TechAgent filesystem MCP root composition' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCs
-# yhMns+YYTftrfeMB4T6h7YVEOzW82iwNHhVWZujXODANBgkqhkiG9w0BAQEFAASC
-# AYALx1P+EqIIUinqzjKD6fZCY/KjzV83eQBAuPzt4BOJDuD19heWrTtRGXdAuqY/
-# BCUsLcALSrQ2uwzug2Fy3RUeLBA+tue3H/p4vIMZBCZ1UxlwKY1Nq+/DSE5nbydw
-# BVs1WV94XnwgRD5vHoAXLI7cm0yITjbpMd4NMdbV0mJV4uX9Sl8BUBvgIr569/v3
-# OsrxCE80ynXv0Djctk+zHhxZ9RbQKrbi2RirtRdShIPbVzpBlc4BgutaIBNwviZN
-# skeiZ6tQCzs2vc68YxV4gv1Ljpma67hFY2TVT4WGR59vX70oGD8OCItird2KBJnp
-# lEVqqHN8bkFG1xSQfUw/ORhzDen2ZUJ5wFNaK2MYtv3nZ4VU1j2w1m7ZBtvjowSV
-# V9EQDfp8z+b+NIDqqqNZ/CGsYtipqb9Yn6GDaU3SSvsLrmVdwPWGNSb8pZGQsxB6
-# 4o/pj1O38MAHxlshR4l6Xx7ARirpzig5X5iqyKuwIxWpyGKE19d1H2Tdwgd5ZYX+
-# uLChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBR
+# Ju4/S5xKs7oIDEZpZHLOZIQp6XPVGONX5LbLEC5VajANBgkqhkiG9w0BAQEFAASC
+# AYAP+HE9jIFCvGg2zueB/mvIa9ojNgxVlaetjJ2eOYVeNtGEiKfhCJKMFCMgLlvR
+# V3YkLiVVbPWTlPFDZk413da7sjAEYe1upy/6Pdqf6/olTSkOWYhmS3CZOaMiPrcU
+# pFGDHCp4f72W0e9+4AHFH5Kzkve0CIrL5uMcDfj2hAwWtDB97re+m56kQc0W1Xe8
+# WYgm8W34gMJMp7/LIWfLEyoE9HG6KvRRp8RQyIEG1oL2YXTFHc5hTxcL6UspYg4q
+# GoJMXNhqGEyFIVmyselOmhkv0b7BSoMly7IgePhFd9+Co1KmdEp81Z2A8w++uJsM
+# jF0erZ5TOfU38A/iNSkjvYQ36qageSLi/VVGPZ6NCmeT0CWcuQY5N91yOVl75hid
+# O56E6NMJ3rq8ur3MLPYvCsVqJKKANmTxm5+E1Xov2h3Ivwhqx5xf5sVcvmk+y+lM
+# uPPgTIIukizJcv0qks3dvSSlVrwDCxkquM+jqp97NvEIpNAMn8mFcQmDo85Dtwfw
+# vXyhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMDUzNzQxWjAvBgkqhkiG
-# 9w0BCQQxIgQgkEIyv1RlKU2GkfnCrdSLoNWQ3H4xyZWkYL80g5ZrlVowDQYJKoZI
-# hvcNAQEBBQAEggIAXylMtBD1y84IgJ5byzB1JnVq+OyYimon4F9uqPumDuVnXqM5
-# cXt5pEhNQpO5khTqiKPBcV33Po5EXNV98F4rRvr/kX7dO09UgthKsaNaPAElvEIJ
-# StFMYxWgfSe5744/28a5DLlwYAOGTxpMe6v7pH1TDRcTQOyPU9oCHSkZyElhZv5Q
-# Wa1GbtXbNYqeVFVgv2Hu/Ys+R837tLwNIE91dn4gtn3ob8HTlw8KOAi3eA6DD6N+
-# avSA0stA6+6MqnitfWy1sxE8w2T6NxvdXyqqnOPg5eZsOPJkN1v/86ZB1UPFFYcO
-# OAl7qDBYKhTqmlCkMEdW021gq178d26Qh5nVPXDmDEWPsEJvYd7uVSbskrUh3ROO
-# yhadlQcMooaLQobmIlATMu8bOcVrpVYUbpfcv53l3T5OqEPW7iIxV7sOSkMSyTyU
-# EerxmR4huUdFc9C15r1dtjnB9mkoHk56x1IfSaVAd6P7YMV+AeVArLAqKXknb+3z
-# kfFccR+ZCf8tPzKZMH/AN6CjOpZiZhY1YM5Y7+wrUADnI+mEt+zAamvhWkAq8+bb
-# BEGG7xMUmqbiljYXd9s/h2fYSHEpa697rRH6R5pWghNVHecg5dOAdrlR5L4gR8QB
-# veixk6JRDUHJewzx970ctflZgfoeCByg9SSShUKOpK11Hvx9AGD9qhgZJSw=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMDEwMDE0WjAvBgkqhkiG
+# 9w0BCQQxIgQgfenQWlTG78X35rWqf+OAAkDJFOM50Sr7+8+RVhq+YeEwDQYJKoZI
+# hvcNAQEBBQAEggIAYlcEwqs3fRtFniG8OQn1Dla3m2fYMEm2mAA/I23wtTCGHJDA
+# O5u3rHRIsFxzb2i8m5EZ7UYZY8k+yoZ4IP6mHSQNuo6gPx1yNx+K3MENMFukNpMI
+# /9kBhvhYzvtFRtr7oR/7p4jgmArsOfLLhU0N3Ney32wwwvJHq2wl8g+oDcABtHgD
+# 0umsit+wEEvUHwkVnTGtIqT9KKqvvAJazGn7f8QitQMlQjdRx0/umsMIUK9A60ao
+# 0SpfcNgqYs8hCwTsXsUIcJd1qSLWsxEf/lkiZYCpFltKmyOwD+SzKpGl+rAevGKR
+# 2xjtBsQ89/v52FF7BokZfzaGH8rSe0z709aNg0SLrUQQGOc4Gat1wLGzRv5EfsT0
+# nvkA4Q09PgHix3DDtklaRVraROHebzp8O20kN3kpR6AEWL3oW97p0fJEkOqMiH06
+# BkgAigLstRODvrGBwn4089PB7IFh6B1yqQ93ZFdl6SikGBzov8pxVOzyn2ksrPy8
+# WiEI/wLqU409I/o0qX1G3WI79JbWys4ck4tEInh9d5b2Ke9H4b2u7QFlYYarTAbg
+# RmEXKuDWJhP/PmOXFFXhm7cfu1t6XaHSdG4K+Vk4GAMi6mdqzkq2MP/9ExYErgmZ
+# pio7AyVROy6wpI+wYO5GOnRTQfIG8VHt9MzR5M99BouWXmM5JEyNpKuuWC8=
 # SIG # End signature block

@@ -188,29 +188,64 @@ else { Write-Verbose "Initialize-TechToolboxHome.ps1 not found; skipping." }
 # --- Publish resolved runtime roots for child processes ---
 $TT_ModuleRoot = $script:TT.ModuleRoot
 $TT_Home = $script:TT.LocalDataRoot
-$env:TT_AGENT_FILESYSTEM_ROOT = if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)) {
-    [string]::Join([System.IO.Path]::PathSeparator, @(
-            $script:TT.LocalDataRoot
-            $script:TT.ModuleRoot
-        ))
-} else { $env:TT_AGENT_FILESYSTEM_ROOT }
+$ttDefaultAgentRoots = @(
+    [System.IO.Path]::GetFullPath($script:TT.LocalDataRoot)
+    [System.IO.Path]::GetFullPath($script:TT.ModuleRoot)
+) | Select-Object -Unique
+
+$resolveConfiguredAgentRoot = {
+    param([string]$PathText)
+
+    if ([string]::IsNullOrWhiteSpace($PathText)) { return $null }
+
+    $expanded = [System.Environment]::ExpandEnvironmentVariables($PathText.Trim())
+    if ([string]::IsNullOrWhiteSpace($expanded) -or $expanded -match '%[^%]+%') { return $null }
+
+    try {
+        return [System.IO.Path]::GetFullPath($expanded)
+    }
+    catch {
+        return $null
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_FILESYSTEM_ROOT)) {
+    $env:TT_AGENT_FILESYSTEM_ROOT = [string]::Join([System.IO.Path]::PathSeparator, $ttDefaultAgentRoots)
+}
+else {
+    $configuredFilesystemRoots = @($env:TT_AGENT_FILESYSTEM_ROOT -split [System.IO.Path]::PathSeparator) |
+        ForEach-Object { & $resolveConfiguredAgentRoot -PathText $_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+    if ($configuredFilesystemRoots.Count -gt 0) {
+        $env:TT_AGENT_FILESYSTEM_ROOT = [string]::Join([System.IO.Path]::PathSeparator, $configuredFilesystemRoots)
+    }
+    else {
+        $env:TT_AGENT_FILESYSTEM_ROOT = [string]::Join([System.IO.Path]::PathSeparator, $ttDefaultAgentRoots)
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_ALLOWED_PATH_ROOTS)) {
-    $env:TT_AGENT_ALLOWED_PATH_ROOTS = [string]::Join([System.IO.Path]::PathSeparator, @(
-            $script:TT.LocalDataRoot
-            $script:TT.ModuleRoot
-        ))
+    $env:TT_AGENT_ALLOWED_PATH_ROOTS = [string]::Join([System.IO.Path]::PathSeparator, $ttDefaultAgentRoots)
 }
 else {
     $configuredRoots = @($env:TT_AGENT_ALLOWED_PATH_ROOTS -split [System.IO.Path]::PathSeparator) |
-        ForEach-Object { if (-not [string]::IsNullOrWhiteSpace($_)) { [System.IO.Path]::GetFullPath($_) } } |
+        ForEach-Object { & $resolveConfiguredAgentRoot -PathText $_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Select-Object -Unique
+    if ($configuredRoots.Count -eq 0) {
+        $configuredRoots = @($ttDefaultAgentRoots)
+    }
+
     $localDataRoot = [System.IO.Path]::GetFullPath($script:TT.LocalDataRoot)
     $moduleRoot = [System.IO.Path]::GetFullPath($script:TT.ModuleRoot)
     $comparison = [System.StringComparison]::OrdinalIgnoreCase
     $isLegacyLocalDataOnlyDefault = $configuredRoots.Count -eq 1 -and [string]::Equals($configuredRoots[0], $localDataRoot, $comparison)
     if ($isLegacyLocalDataOnlyDefault -and -not [string]::Equals($localDataRoot, $moduleRoot, $comparison)) {
-        $env:TT_AGENT_ALLOWED_PATH_ROOTS = [string]::Join([System.IO.Path]::PathSeparator, @($localDataRoot, $moduleRoot))
+        $configuredRoots = @($localDataRoot, $moduleRoot)
     }
+
+    $env:TT_AGENT_ALLOWED_PATH_ROOTS = [string]::Join([System.IO.Path]::PathSeparator, $configuredRoots)
 }
 
 if ([string]::IsNullOrWhiteSpace($env:TT_AGENT_LOCAL_MCP_ADAPTER_PATH)) {
@@ -293,8 +328,8 @@ Show-TTBannerOncePerSession
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD2pUJyaTOyeZnl
-# vED7B+UrPmnEokLR2K6tw2htAFSrE6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC9YStzbzhr8bYC
+# s/uBq6YoSLhO1KeH3/LJh3jn/Gzx8KCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -471,31 +506,31 @@ Show-TTBannerOncePerSession
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCCt
-# nvsuGeIUu4FGvIevJpDZLDTEldttN90zmlpJW69yfTANBgkqhkiG9w0BAQEFAASC
-# AYApPBRNppuZQ/NtDffk2gnU3cj9+xKf2XhJqOtFb2qdmpskz62q10qazvmhWEJ7
-# Kv+qwt6ffC8KisOKcOa+pjD33cO+wxp/oYvgnyB4XOZt4JKB2G1bKa0OB4U179VO
-# xXf/kySglA5n/ClE/3jNqVixQqbaaSLsED4D6yYXgu/YRlxjGDINEeBXTu8cL8aj
-# PqaSp9oPBk8kE33TYc+FbGSqR0Wtj1/c0xx/BF1e2GaKrpnp7IBfgfGy+MCCe7qs
-# uUYbBPgRsmWxUwTSO4mgx1xhXsp5TJWGmZo9FA2Cxj+17Q9C7gYuMKJnL4SJPS83
-# Q9DjZUsGn9q1MDwSv3Fka5s4rJ+nCY1L/QB7yHSkAomvEuHEElINHvgf5936/odi
-# lsrDn06BOsMz7/UZnjLS/G8dMReNw188I+98CglK0cGinmAiII7ea6hImGpwYo4a
-# 1gonW71xJjPEaYg8fWubE6kEZWLBP47Pq6pEwbh0lrBi3J8sTjOu3Y6x9/ulueiZ
-# WsChggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAe
+# JeIkIYehZD6zFORjhOssg3stXW/zPNK/qPsyxG4HgzANBgkqhkiG9w0BAQEFAASC
+# AYAfz5y+r1km2DnoAziaA5ZzyvvYljl9THlwfJ56t+qxl5rVuNpYH35Uq/tG6SVH
+# bNKXsf2TcvMKYLKymTtlDooNfZMg1lolK2uiFbWNheuXLLt111OzPUcroyoN/YnI
+# C1KSYYN+xLRFldwZRjIg9666XF8VFGIE0ISaWuK5MxA6esFW9D57gIGXX8eWPUmo
+# sSPCqUgwJZfZLq182NTy/g/TP7q/k0QDhLW51oKQiDfs7bmaWrSuoJLDB8ftmdRc
+# uyF0BhMVM/0Y3v8GWNyaiixyNyeWk6ZtTcb+jNEAKn3YJs+LxX+7/bAymUcT+pv2
+# wFDwMgIkCOYmK2qKgSKfcxiH60GvIXQOjEdEvUeb+Zmnq+prgZtYLzDBTHLMHJ4I
+# lVSC91AmeTdgSoKcDjSYZRvrMKk3A9hqG50qrw+8utEdthTxqsZzaLXbOzp+K5CH
+# nglYrWesQm9p7duNbGJPTkJpVQDd305arou4mm+D6nVMy+O+lAjtaWl6K2NNt76C
+# s02hggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIwMDUzNzQ1WjAvBgkqhkiG
-# 9w0BCQQxIgQgdQwhj4ShXpt+NgaRh/mZAMINbk4tGyealURlQAVIExowDQYJKoZI
-# hvcNAQEBBQAEggIAYMNMhV8D2S01Vl4L2ITsHAYUhlNpx4tpo5SrXdHZxzecnleZ
-# 58ON0qymgSeMhkPgIdnElFDVsvzgGf1xzmOIOU2SARrQmZfTjrGoDlmyMw9MJrUF
-# uZEO0Ecg4EsUYuAYNbMxphIGcTbFdLzOTycZ0b0CuLb/Dnj1PUjGMeUw/pzds7P8
-# dX+U7+wxubUQtuO/tdBA+DQnAj928bKTHTOBTH4Rg6wDuwZcyaKXFSD5JDiqV7Lo
-# NOS8uSxxetO4+jq4fZ6c2EXbV9WJiZNiTKGzbGxB+rYdktmDZmoxA7d85cCCAcFE
-# TpgTzql+o1ccKVNsvtxfLZTW6roxuMaXQ2tVwkqXO/H6RHu07Jf4QsrCB7oYzEP3
-# slRgO90OMT2gZDLd+vgmM1JDrK3lYag0+Zu+39mzFlse8yja4HjdWTfsAA3YLJKT
-# UI9hLdQaaaqi7asiqOX/lEiP605khhFfwwI9rb6aDj/NU0FyVCMBH4XbMSVk6f4f
-# VGldbEJqIyBAWhXnM0hLfFouvmAvhyipudVbzjF0cN5ucW1xuJaIMfnbgtm1eGGQ
-# SFXZnJVqKRzQcOw1mMo9/2yBaOnicuDHQMrmFvZEvtLXWSpopU1G2RbMIc4hhwWw
-# AGN4bFSim5Q0pFemOn9sKIutt1ydeMKnEyWtgrzUFp6H5YF+lEad5/BXdTE=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTIxMDEwNzMxWjAvBgkqhkiG
+# 9w0BCQQxIgQgvhZFFZU9HqMkN7v5c9ukUTOdkG38ANzPBhbzvjlS53wwDQYJKoZI
+# hvcNAQEBBQAEggIAT/4YYyWe6Qst06aWegWrJkK8SEhl12AiXlJbHcnUfVPOHoVl
+# G1RRWjz+aq6xr6XC+V9E8Sbpy6uC7PXUegEu1V/c42tDeUQb8I2AJxap9y2UFZ7b
+# td+8iAkIw1wcXcgFQbIeBJDlQA46ViDtcRru3i/cx0L6DuPJ4ADsJ1vdUV8KeWbq
+# nUB/WlSweJLLRyEUjkfYE1Z4kHhjkotBb+Y8UnPsVlUExLT5vViwDxvfLQcMiwtw
+# JnuVxg/PMqQqwoXgSkwOniKmhRZREGce3xdnUiLthe9GUnyqxyobx47QeHgWSM9y
+# utleEqdcFMcVQtVG5uSrsF89+ucCuBkhM5I1fBWVzIgOWmjg2v/w8a4+d0qizSa0
+# NAKg5Tndlek/v3V8FcqdZAAjjyGujkdVq69JFt4bEz8ZHF8lrltZc9JdHG67qdpp
+# 8bxMlzEiIkJjSivOufCNjvAcKPGlcqrdlS6dNmLtYECzhkGevgacRqRaChcTdLkE
+# DNXFJ8bYjHTR/I1HuP+CxQDPLxgNIOwGFy3kgGeASf5SEjpHNlMxTp86ZBwmUjiQ
+# xs1V4w8bjsAVs4iLiRyfwaDFnb890Fk0RFjX+EotLcds4drGhlMkVFf+2Wig6uL7
+# S8EO3lJYBUWbSSZUggyLHVsodjTqnQPAPatIygsJ3cFg7p4As+flYNKAErA=
 # SIG # End signature block
