@@ -103,7 +103,7 @@ function Invoke-TechAgent {
 
     .PARAMETER ReasoningEffort
         Optional explicit reasoning effort override for GPT-5.3-Codex responses.
-        Supported values: `low`, `medium`, `high`, `xhigh`.
+        Supported values: `low`, `medium`, `high`, `xhigh`, `max`.
 
     .PARAMETER ReasoningEffortAuto
         Automatically selects reasoning effort when no explicit override is
@@ -256,7 +256,7 @@ function Invoke-TechAgent {
         [string]$ThinkingMode,
 
         [Parameter()]
-        [ValidateSet('low', 'medium', 'high', 'xhigh')]
+        [ValidateSet('low', 'medium', 'high', 'xhigh', 'max')]
         [string]$ReasoningEffort,
 
         [Parameter()]
@@ -468,9 +468,10 @@ function Invoke-TechAgent {
             'medium' { }
             'high' { }
             'xhigh' { }
+            'max' { }
             default {
                 Write-Warning (
-                    "`nInvoke-TechAgent: Ignoring unsupported reasoning effort value '{0}'. Supported values: low, medium, high, xhigh." -f $resolvedReasoningEffort
+                    "`nInvoke-TechAgent: Ignoring unsupported reasoning effort value '{0}'. Supported values: low, medium, high, xhigh, max." -f $resolvedReasoningEffort
                 )
                 $resolvedReasoningEffort = $null
             }
