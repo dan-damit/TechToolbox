@@ -165,6 +165,9 @@ function Invoke-TechAgent {
         to be available to the agent for this run. Disabled by default to
         reduce recursive orchestration loops.
 
+    .PARAMETER EnableTerminalHandoffPreview
+        Opts this invocation into fixed-path, verification-only Preview authorization verification. Does not provision trust or issue authorization.
+
     .EXAMPLE
         Invoke-TechAgent "Run system diagnostics and summarize findings."
 
@@ -308,6 +311,9 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [switch]$AllowMetaTools,
+
+        [Parameter()]
+        [switch]$EnableTerminalHandoffPreview,
 
         [Parameter()]
         [string[]]$WriteDirectory,
@@ -1491,6 +1497,7 @@ Hard requirement:
             Verbose                        = $false
             MaxIterations                  = $resolvedMaxIterations
             PromptHistoryItems             = $resolvedPromptHistoryItems
+            EnableTerminalHandoffPreview   = [bool]$EnableTerminalHandoffPreview.IsPresent
             MemoryPath                     = $memoryPath
             AutoRetryOnRecursion           = $autoRetryOnIterationLimit
             ReturnMetadata                 = $true
@@ -1787,8 +1794,31 @@ $config.DestructiveApprovalCallback = $destructiveApprovalCallback
 $runCancellation = [System.Threading.CancellationTokenSource]::new()
 $cancelHandler = [System.ConsoleCancelEventHandler]{ param($sender, $eventArgs) $eventArgs.Cancel = $true; $runCancellation.Cancel() }
 [System.Console]::add_CancelKeyPress($cancelHandler)
+$previewComposition = $null
 try {
-    $result = [TechToolbox.Agent.Core.AgentCore]::RunAgentAsync($config, [string]$request.Prompt, $runCancellation.Token).GetAwaiter().GetResult()
+    if ([bool]$request.EnableTerminalHandoffPreview) {
+        try {
+            $trustHostType = $loadedAgentAssembly.GetType('TechToolbox.Agent.Retrieval.TerminalHandoffTrustHost', $true)
+            $composeMethod = $trustHostType.GetMethod('CreateCurrentUserPreviewVerification', [System.Reflection.BindingFlags]::Public -bor [System.Reflection.BindingFlags]::Static)
+            if ($null -eq $composeMethod) { throw 'Verifier composition unavailable.' }
+            $previewComposition = $composeMethod.Invoke($null, @())
+        }
+        catch {
+            [Console]::Error.WriteLine('WARNING: Terminal-handoff Preview verification is unavailable; continuing without Preview capability.')
+            $previewComposition = $null
+        }
+    }
+
+    if ($null -ne $previewComposition) {
+        try {
+            $previewCapabilities = $previewComposition.Capabilities
+            $result = [TechToolbox.Agent.Core.AgentCore]::RunAgentAsync($config, [string]$request.Prompt, $runCancellation.Token, $previewCapabilities).GetAwaiter().GetResult()
+        }
+        finally { $previewComposition.Dispose() }
+    }
+    else {
+        $result = [TechToolbox.Agent.Core.AgentCore]::RunAgentAsync($config, [string]$request.Prompt, $runCancellation.Token).GetAwaiter().GetResult()
+    }
     [Console]::Write($result)
 }
 finally {
@@ -3141,12 +3171,11 @@ finally {
 
 
 
-
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAjdHnY40rEKzqq
-# YHojt1rLfnm3OtY4QuFPGD1uPHrtNKCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCRMyggmzERnsYd
+# RYSDLstXbMGqqyVmHH6JtBxgewLufqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3323,31 +3352,31 @@ finally {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAE
-# Pqr9hchjqx0DZZwQqdIXM6QN3fuL+1OtUozVl80OfDANBgkqhkiG9w0BAQEFAASC
-# AYBf8ylAXPn0B/5lpLwYesYh+Ez3Fg/jbjGbMC2Zuf3091bcVHC0XiP9aAYqWx7m
-# ljPWIsRGwEWzf/J8GLbR1Khg4+ADBbsTEBbmuLRe5gcemlRZQqjvy2GMuEltZHJA
-# sg901CL8qOQqOsl9RKOV6npEQC5nRaW4uk5Y5E7SClaZGD2QGFnEwiI1NuY5fcqO
-# 8vruRvrGEWmdAwhbWBC5ZaUYeNEhgt8Zwu2gZklRRRkGy5f6pnRNV1sfAcCAR0cC
-# o5zlZXeYlBpgrUw4kLyBUjIqkqGFgKTUnvdGPMhmX+Iir9vdl4AvYo05GqilTJaV
-# WgwDKP7W4gb4nbBOgpEMVTEZIdbfWNcVANA2ql8DDiIPXKas+BQl7MJBiKEEPDuW
-# 4G7t6+qdpwkOB71HYmIR5WSV3QB0RfJYMomR0/DMH+FArZ49p+3DMbTpQgSO2wzy
-# jaUF/1oFxFFeuBAH+hZq7NTYpL4xEzmn3YO5DoMlDdGyy/1mv5Js+uqYQrZTY1aq
-# nhKhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBr
+# uYwZ/rwNcIYbCblYGTCfqlANAMS/2VUDo/n+DPeKZzANBgkqhkiG9w0BAQEFAASC
+# AYAuog/+Angi+SAQVrcqv3I4TOO4vWSFRlaFMM7TJtgFryGXpf5mkpCPg0ocOfs+
+# HdWN3Gnk8eJ9Y3BN2io+JMkxZidAljsJA+udYwYotlIZ6u2aAfTWn3xJDoEFxaeU
+# xTH8ZvN800avJMqOstBHiV7yhNzP2dHj0S+s8GBUiH3WCwXy16e9ZqLLSSePA5Mm
+# pnIJyEX1Lk1rZKD3dNYqV7aVLSSMjeeMoxA300zVRhTIYCYOexdHNrrOEatCJjA5
+# ShF5CtGjnjy/tb0BBZ8cD4JJgkaJz3MMVbp/Ix0h6t9xd7wrhHi1EPYvw/pCFF8u
+# shls9jnWvnXSz+NW9nw8DtYUTHnaNtvmMovECkAuuy3lCVCaz7TrVzBHgjxauHP5
+# S+guJHUABq7gNJMGiCQZxrzG+IlJkPyo/XBGPZ0at7F5MklX24FBGhwJNf9ItF91
+# afuOJa7Mxkx8So+RjlMXpmMnt2r2BNqMNy+4VWReUPqV6i/yXabm6cYR2WkTVh75
+# hkuhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTI1MjIxNDA1WjAvBgkqhkiG
-# 9w0BCQQxIgQgzAF6itkbGHq6Z7lbxljwCslYRDZLRxqVw/+5uIOJrDkwDQYJKoZI
-# hvcNAQEBBQAEggIAsREq5lZFXQw0MSeL4PPAotPhtND61ZPsAJeJBkfLgvcrXCtJ
-# 8g7+x3B91fc4Uo7TWwkb+Wwq8l1HmN49GjhsbuRv/8JbgKOPOtr3JHCzc3HISryh
-# S+TvclWr++/2X8iTVaOaRolbsLk3eUqdWkoDe8+v5ycIeAJ/cmSzSYLAhyqfrlrR
-# o1CMJQNsaqHUCb/rOkwt3+eOk7cwNnV6T0Fa6gTOpCdtZ2MQDMMLXWDYOQON4f3Q
-# oH0OgxyWbVEyCjejhVCAUO5/o7IHVUsx259OZwhSX1PhHcmJRIZPF1BSUzhZnv9B
-# AirwhF8Fu4u0/DzrlJ8IRy3cPhz230caIiqQ+h1ISRVzLryb+0kI9eZuBAF415XG
-# eCTWX0b+k+jvVLfQxsK1WFwl95J8Cj32/XJrt22yTPxa3Urkvg6xc7fNxeSOJAKT
-# JJvdvZDj8GpIj523vFw4pCY49bPThocdg6NSTZEEqpBlzBvIaDBfWMBu+fNqHA6U
-# I/TZblhKl+kwKSIyJCVLZpL4bACCZQ2Yg7ruH6IgPeyKbk/LqbQ3jX/m0dkRSCC/
-# OAyjT941Q7eIt3T61jRnex0F+64Qnvm2Vhc+jRV45kyyxsYy6nQV+BGC1T5nFWcP
-# WeBgwhZAzQ3pokLescDhTch4IRJESYiCq+8DtnWvQxFtXoTfiZoTvkuT/IM=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTI2MDEyNDI1WjAvBgkqhkiG
+# 9w0BCQQxIgQg65hjl2HNZI+7baMGU48SeoJti5OWO4u2OCCTWxrcxfIwDQYJKoZI
+# hvcNAQEBBQAEggIAbqRfpKTRLDR+Vtq66ylfWe6Q6CWy4b4/Lr3DhNrbrILBrc4E
+# YcrN9+t5bUWwE4QX91rV6ycWtwFrJpj+/d14jaSvg2i0El22zOeipXjEyDIXCThz
+# 3mHaUptl68Hp+QMePHvxnj/Ec9yOxpDmjKITkK1ivJi7KPmRnXwm7wKqEFPbEAxI
+# xqccXjfxO/M2NKy30mBW0rm3IOSxztOXQaoXWId51dF/qdQqaSmE4Wan9Wjjf6MI
+# GwQ7rluqnlNYD4tqANiozV848Wc3KeJav91hxJwVH4MUzBxuOJLelNmAyIiKhjfO
+# lt8QQUIoH8krV2i9ZDFtvBORfeGdaMxy4qQIffbfS9Wp1lcJTAzTSE5fKgiOzM2m
+# Xe+6IGbtvh2KSYPvKhesxOFALVtRyjMmyxDzWF50Ykf1kJTI+KuQIb7+QFQOsUr2
+# vMONSiiuuBV3YQoFoiaOYrUo9OE4KdjlqKeahavLZXCsh6ibsP41KuD7UjIql6qY
+# oX18bOiYoCt2QkdRF9MEfVr2eo12V/vYdoY37nkcbOEro0qcPG1D/8umS/U7nRC+
+# uEzd5bAWGN5nRL8/iAMoRPwV7TfumTze8rC3f/ZvBUWK3AsZSUx6fOe40MvUDurg
+# eocoXvhMng9Q79KLkgcqW51QPlxslqCVeZeziUTai6X+4tH7rb9nc7t3mjc=
 # SIG # End signature block
