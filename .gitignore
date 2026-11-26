@@ -21,6 +21,7 @@ AI/Tasks/Archive/
 ModelTraining/
 actions-runner/
 TestResults/
+Diagnostics/
 
 # TechShell packaging artifacts
 /src/TechShell/**/AppPackages/
