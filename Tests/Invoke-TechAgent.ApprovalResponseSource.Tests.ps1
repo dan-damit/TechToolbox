@@ -118,7 +118,7 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
     It 'preserves the interactive gate and delegates protocol mapping and stdin forwarding to the shared handler' {
         $hostFlow = [regex]::Match(
             $script:invokeTechAgentSource,
-            '(?s)Invoke-TTAgentApprovalProtocolLine.*?-CanPromptForApproval \(\[Environment\]::UserInteractive -and -not \[Console\]::IsInputRedirected\)'
+            '(?s)Invoke-TTAgentApprovalProtocolLine.*?-CanPromptForApproval \(\(\[Environment\]::UserInteractive -and -not \[Console\]::IsInputRedirected\) -or \$null -ne \$script:TTAgentDestructiveApprovalResponseSourceForTesting\)'
         ).Value
         $protocolHelper = [regex]::Match(
             $script:approvalProtocolHelperSource,
@@ -158,8 +158,8 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNqXQnH4lOgLwh
-# hvUiBakB3WUaD3rOOtnaSwPFA+VAp6CCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC2mOLXqj6s0VVk
+# IZ1YcpCZAUrxOrlcqH5m7eKivqLGsaCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -336,31 +336,31 @@ Describe 'Invoke-TechAgent destructive approval response-source seam' {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAW
-# x1LjrHBHP7MlI7Z9YlxGBscA+105b7gPbAfLEOFwhzANBgkqhkiG9w0BAQEFAASC
-# AYB+YwRw93hRh1NJ4FZmTmJUp0f2nipZY6dk13eK6S6YlOhhCGm0gmn3n0X0h+51
-# qSaoYIaFd6BYi7IPi/yVwHjqE5Aw8XuWi5Iyg3DrLvFQobs+BGC0/tF6if1+71vM
-# fsCT+85jBWil2WzDvAXNN33tGC2WoYCVydEMLrHwEoI36BZGKIOQpyuYR5J5i4H5
-# zj++1TveJrziM4RMzp2NunTS46HgAGJD4M1oDJeZv+dQb1pPa1XmrbtMbFgHbP68
-# Zyb1KI3OwYpgImcIBastlD9C77MYroLBtq2/Sokx387zj0+ajc0Es+SNQ2qoAXn0
-# Vuxn4peKMgHC76sntgswXWL0guBtEAuje1b3bcOWwL1AqTJ3IJoX7gxytKpjaByR
-# JMKZ+vF18ngdQJRBSJffNgtc4A12e6c6zDnyO1yaEDrHUyshEjXIpg7erUPuB9NJ
-# ydy+qqxwtT4iaeIcBgMiVFrd2/cmE7bnWBTb6FC9uYwm4uHLJz6QOutTI2zQaYah
-# zyGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBj
+# 8KYXvwzdCkW5TTuYlLq7z42eEmhsiYhvOPvZeWGCcjANBgkqhkiG9w0BAQEFAASC
+# AYBYMeZVRDsZKI6W20HQWBDSpsDi4bIxA0ueyUXRTBTd7H0EzuNuoyiu+jeumKlc
+# AFx4dOr8vVcPKvlk3AqfxRrEDJrw2XhptCNiF2rXqSNiGRsfr9M6Y+An6PnYH+KJ
+# juO6SHeiwNaqptOfgy3A4bKguMlol+no2GbvdpZnWyCuXPMuzaV/6wR+S5ypj9lM
+# MnfyBNLATd5WENzdzMPde+rQC2MJscYeHb2ocqhq87paYosh4jKXukYyWvlZPqTH
+# nwNHh8xCSvGff1NziUas0D8oiGCuVlJYVgCoV5QMJQ4uBCEL3dzlQJm9T86gBArw
+# 8vf8MAq5Un/KLI8xEhcd9FE9wuOGrZkLft/BEJF2TzxTfPeI+TsasPznsNGVRjDK
+# AMrZbPjnDTURZCdRV6M07F7S3hQ/3z+JhHFoPUIpf/3Au7By/VGBGwzX6siOE/E6
+# IOox5F9Ckx3MKN+EtKmxpqPfClrAg0F3hsgeAtfH8x4MnCDzDXxreUWEiv3r6Hw9
+# ZWKhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTA5MDUwMDQ4WjAvBgkqhkiG
-# 9w0BCQQxIgQgtsfEoPmYuxNl65+1fH+GwuPqh+UgAnuEYh35E1bv77kwDQYJKoZI
-# hvcNAQEBBQAEggIAEVJw4KJCbgCfkRBlQfm20Y5034YHrbuMR/0yh9RYCgvHPBlJ
-# eY5hJ7uFEG8g9Yutr57/kfEWR4LsdHIjjL4cZS06vkWVHaEuL4vnUt9H4tUeJref
-# zVgqsjIJbaOVC4EXsH0B4CFuNMWBeUpTC+Llq7zwNFQjMDqYs7dcITKbxXLgHZ9n
-# bv2VkvvCnWRJ1hdgs6s/nDPXK2eG6UlL3ERQg4X8dAL1pHqsvR+IY7qUE1ufWHX6
-# CivIcVDj78OUlOylyOZiu+IbVMkpXAFKaz3QNs6wegTesrIDfkZ1tiSdrgupw69C
-# 5K54IW6q/HXBs4abt0ozbrbbDPwC/me93k6j859+KwMjEgKenCI5vKwn4QXNF1qR
-# kmtUyeL7RzWKOkTv5YxBkapRu0Scqa3gIKSCaoMK+UhtIXyfaojgkVA91oC4dqIj
-# eNJcTuiuJzPA0UFf0lmegvc4QAmo+ukOm7U1Qybv6zlv+y3sfSEhivVtrd9a+O1e
-# lbP8OKCLvjz7rcXzbD60yu/nuZRkSp0Wh3wr2xcjgUWaCh5dSoIA7WgGCROD3mMQ
-# x1CG6dNCgq4tRwVIm5men1WvWolwKwFwfVEo9cP1pxvlew8J3rK/m0n0Z+PoaZbw
-# w+prbXLchOE3rl72oN0XPJ3hkROe2Tir3xxC+1T8snHwoNEC7TLfdgf6m30=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTI2MDE0NTIyWjAvBgkqhkiG
+# 9w0BCQQxIgQgxOhu7xoztaW4faA2nno3nuCQDk+Q2X7A02F8emtXuGswDQYJKoZI
+# hvcNAQEBBQAEggIAKOvETvGDnOVqqg0mEoaCMNU5cA2bRX7zPSzOhKKGrDqezSMN
+# OqdGYr2Wk3qOcaNY/1sotfYKzTGgLAirlwsQZcgxtc7nWqunEDEsHBP9a+/sCQle
+# 5wKtvBrp7Q4VRakZ3Gl+pbpVgLEXNroSMaDuDI1Pb/j5CZLXMdF1YXA2DsXaC+hm
+# CuCFfR3EP8kmsF27JSHhRAbwYFdT4aXLcNTY/fYaQxJyHzDWVK2yC4SyNfZFwSBD
+# vKZgSdoZo9omyeuFuI6V6vRfkmtjwTCr0bW14dRB7bz19Z/jzz8EUpRV44h0zIhU
+# VDrOBqteX2z9V1ylqmRLsK9RyCi07XmQQID3Zy6Y5TL/gq6sUeeJ7L9wTrr1PiCf
+# COUNS2KhymNVx9wBowurv8GgusxR3aZmB5HCe7mi6M6w4q1LXACZ40f7KHmHgjrM
+# G8qZCNDZJk193PADZ5SK06FJM6yYX9XOsFbDlsL2IVyfTcNj//v0bQwtQ/192wq7
+# RhWmx2vHMsKJcMRaDMpITDHovRpm1mgoDge4SpI65Y6hJ11p+jM+1y3kON3xgrBG
+# fQS1Nd5GIT8Jnzs3jNg+xD7AyWZuql4KqvoVgwtXeEiFAlOCBpAVKKOlFOUBstpa
+# Bou7qyPIkbQuxSGEiU2KIn1n+CmC84OoRxMCM9vaxlPFikC5b0AaxJzopGw=
 # SIG # End signature block
