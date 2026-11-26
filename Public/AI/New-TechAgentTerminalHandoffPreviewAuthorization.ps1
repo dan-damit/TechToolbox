@@ -36,34 +36,34 @@ function New-TechAgentTerminalHandoffPreviewAuthorization {
     if ($null -eq $result) { throw 'Preview authorization issuance returned no result.' }
 
     [pscustomobject][ordered]@{
-        Status = [string]$result.Status
-        AuthorizationId = $result.AuthorizationId
-        AuthorizationFingerprint = $result.AuthorizationFingerprint
-        PlanRunId = $result.PlanRunId
-        PlanFingerprint = $result.PlanFingerprint
-        Kind = [string]$result.Kind
-        CandidateCount = [int]$result.CandidateCount
-        BatchMaximum = [int]$result.BatchMaximum
-        IssuedAtUtc = $result.IssuedAtUtc
-        ExpiresAtUtc = $result.ExpiresAtUtc
+        Status                    = [string]$result.Status
+        AuthorizationId           = $result.AuthorizationId
+        AuthorizationFingerprint  = $result.AuthorizationFingerprint
+        PlanRunId                 = $result.PlanRunId
+        PlanFingerprint           = $result.PlanFingerprint
+        Kind                      = [string]$result.Kind
+        CandidateCount            = [int]$result.CandidateCount
+        BatchMaximum              = [int]$result.BatchMaximum
+        IssuedAtUtc               = $result.IssuedAtUtc
+        ExpiresAtUtc              = $result.ExpiresAtUtc
         ApprovalEvidenceReference = $result.ApprovalEvidenceReference
-        Diagnostic = [string]$result.Diagnostic
-        Candidates = @($result.Candidates | ForEach-Object {
-            [pscustomobject][ordered]@{
-                SourceId = $_.SourceId
-                AttemptId = $_.AttemptId
-                EvidenceId = $_.EvidenceId
-                ReceiptFingerprint = $_.ReceiptFingerprint
-            }
-        })
+        Diagnostic                = [string]$result.Diagnostic
+        Candidates                = @($result.Candidates | ForEach-Object {
+                [pscustomobject][ordered]@{
+                    SourceId           = $_.SourceId
+                    AttemptId          = $_.AttemptId
+                    EvidenceId         = $_.EvidenceId
+                    ReceiptFingerprint = $_.ReceiptFingerprint
+                }
+            })
     }
 }
 
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBbnuDLzFrB2NX0
-# 5+vEJSXl8k2VnSKqkC+CJPXJyOyL0aCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDDCb4THBuGMQB2
+# xRWAwb6N60OBcKG63ekf7CDAv6//naCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -240,31 +240,31 @@ function New-TechAgentTerminalHandoffPreviewAuthorization {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBD
-# cM0qptpGFu3q32udQZPCDsUxPIKnEYUxDMgKqE/TeTANBgkqhkiG9w0BAQEFAASC
-# AYCuUajST0gQGQmx0AXMdJhBQxCITkkOL9KPPimn+Al0zcf9N6APGyK2KMehk585
-# /166xH+aKNAnD+iOyRRaQpTlTo5MALqn16qPtMD1/JUWl8R9agIE5XMbIEuwdXXJ
-# 4jlpLmzEvZSO8Ra5GAHDvRbL4iF7GM7HA+tdNLM2xVNk2cR09QzRkru0upWNU5nc
-# h10WAH2pQGh8icsvN7VjvvmKPV6W+3IG2YPz89X9FLEm2QTxlyaldnxRo/bT3YKM
-# 8iOeWY3tFUvlsi6dqj5Rfe4SndwBSIRLJx5uIqruKEyRPLngFtnUS2HPaVneuU4C
-# ttznpN5waMUJ/yWTXgReTKo/mxG0Gf/G1Y82loRgwZgCOaa6xF/R9g9HnkNg4nKn
-# zRY//X/dADJEZYSCwwIwbYjbcinodx6BQv676OKKstWjyBqQLL5HJzoYimtFuvwC
-# bufhmrsEiQEuGHwJIhLuLNVXQJDbnrLaxeWFuyUISz0MWPOvcan6RpcMHqZh5U0R
-# fhuhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBL
+# ggxvsHZlB792gZujUjkhH/u7a69oUCsPX6S5BmrgJjANBgkqhkiG9w0BAQEFAASC
+# AYAyzenhdrAqDnNjfpUOyAz5wccENZN90INdrwr9kCUXjKitldi8LyNSlC6JHLoZ
+# IYJaQiZ9Zvgemdum2EylmoBrDfCbu6HvADGLzqPQ973fuFtXiwlbwf2kaFuI60cG
+# i/5JM5/nz6ft121GCuQ8f9EGVCRZVa8j6cANCWViSdg/FO3IqGxiK8TNUUm3YWmj
+# 2AIIF32GcbNTsm9OqEqeZP016x6P2V0mfth1QO9Gjd0sS7uFu2TouTPsECBGfJyl
+# XIxINc/LrPBENGRjbVB625OHJcStfzfc9p/dEB9Ekr54BYZuI57qYHtM30RfeMhu
+# SktK3y9eNHfuB3k41tpER5wwZExdvmC3EO1PROTgi+iWjzFuaR4syEkPy3+vaHpU
+# TRb8aX7k4yP8u5lNIukZxQVSLhEN7OHU232cNuX+ekCg6hjk3GL1w+54wkL2jQy5
+# Lp8rt6sYxGY3YUMkdSITwA9e0HMwVvwmhLbPJd4k16I7zt35tTXarj+aAONa3yS4
+# pGGhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTI2MDEyNDI2WjAvBgkqhkiG
-# 9w0BCQQxIgQgKxRIUw2hMJCD4ZGiDg2oCo3SKSNSb+fod8jIt5v8jIAwDQYJKoZI
-# hvcNAQEBBQAEggIAGpHqiU7Ykgjvn2YZ5EQxrvc3b175FPKqITBOZXC7tc7Rsbzr
-# 2KiGjtjxfsNgQQJp97t1SNDFD3xtqcVTuu+0VZ11NJ416yElBKCqCSyUawwGnsEX
-# 1kGgYygnAQLZQZdx5a7hyrmuZHloB3V6gcim69UCP7cGRnqS4mDRJtSrBEYn0Ewr
-# vSPd5ohBS+97URQQoGeV1K0TpVAhyWsLxGgy/E/5stkTgKB8ogJwzsb4OzK4qY1q
-# QA0yhXKvXGtecfcfDzIBxnFnztu77V2XkMd546N0XgQMHJQLj3TdDvuf4pRioxmg
-# 2udTmgCAAxLJ61fsp3d184IBe7QQorDnOH4JH9m6sNkZEoyluRipocJgwzVeONZc
-# /KUpk5I6F9VbjRypFvjQBpohpniMRgCbX73HzfLAVdexu58dMnLBI4KD3jxW4rom
-# O/JrFLg6o3eSDW000WUT/ibyidkvAOBh6UAqbbxniiv8yKlvgIFtZD4c/vBqouMZ
-# i/R8BQQSVC/7n//R+LM7yDXKDp0ten9WptdEkiGo1FMnVfYi8eXqElqTXChDB8u6
-# XIorXdici3X4ZP0al0qYYh4poBZixXeb8i8ZwkZqXTETzf+H5Cvxgc0fJbuULDDx
-# O04mIsVpjsMcqRtTsEnE2jtBfSdpX38hX26SIU3z6ER6W+6OTiSoiVRCEgs=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTI2MDEyNzE4WjAvBgkqhkiG
+# 9w0BCQQxIgQgqSAAyBXyHdoTGAodQhSYKCKMvOgcjOMAt7yGbv3FNUIwDQYJKoZI
+# hvcNAQEBBQAEggIATvif1eD0qmniyepfdeJfVMHJxJJpilG1rdxyaAk6qVpgjTNq
+# UBB2BCU8ErFi87F8ByWqVvm4TXBSCfYU8lk1rqXViqun9Y1gNHzYGwv1ECVrTJse
+# kYUjZXHqi2nKnCI5n3vLL6q1I97P7jlIAvj99jNdyt38BaVPkt1mvab27fHq1Imy
+# AdzJvrZ7qJgnrGf7l1jbi/5K1XvAwLRSsgQSkQyYkMdt7DS8oL7Y4ZN/aGhz9dCh
+# pXUlsrgySwRnYz+d9PMyJosNaXAoMQnrQ/VFI4af36UNReLWOKEw7kB5Vkxi3ya7
+# vtQT++zbG24iIOgxLkMqAHf4nNIFTGPduK1gfUHgCUTaPxSCg3YmYvOJ4Zvml/RK
+# qp7dHSOhvh/3MEFOrJU/sVV7cIOwHZchy1yU02PECzylXIivQJzah4MGxfm5AtB+
+# OBP4SDLHMnz6ZtpSDWIwUlvBix6Nwk2QPjvA36Jm8SbUr7IkSyJ7Vmg5xCdnyY2H
+# gthsK2xKgfoA7kxHzN7ot8pRP90zEnrUMMc9Nf4Sh2YeQhgwrGaAl/3smPVHiRgt
+# nxegfr5yPPHFnHZJAy2kvPGyS4aIcej3rf3GMAYZAMxknzb8pQvbylYsW13LRwpq
+# dt2I2nnn1IgTjJeCgtaN8k9t7U4UvoRp05knLOHwJ8Lb78Gi9dQUUuXMCPY=
 # SIG # End signature block
