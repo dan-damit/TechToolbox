@@ -669,8 +669,10 @@ function Invoke-TechAgent {
     $stdoutTask = $null
     $stderrTask = $null
     $requestPath = $null
+    $childScriptPath = $null
     $resolvedApiKey = $null
     $toolCredentialPath = $null
+    $agentProcessStarted = $false
 
     $expectedOutputPath = Resolve-TTAgentExpectedOutputPath -PromptText $Prompt
 
@@ -1827,7 +1829,9 @@ finally {
 }
 '@
 
-        $encodedChildScript = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($childScript))
+        $childScriptPath = Join-Path ([System.IO.Path]::GetTempPath()) ("techtoolbox-agent-child-{0}.ps1" -f ([guid]::NewGuid().ToString('N')))
+        Set-Content -LiteralPath $childScriptPath -Value $childScript -Encoding utf8
+
         $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
         $startInfo.FileName = $childPwsh
         $startInfo.UseShellExecute = $false
@@ -2150,16 +2154,17 @@ finally {
 
         [void]$startInfo.ArgumentList.Add('-NoProfile')
         [void]$startInfo.ArgumentList.Add('-NonInteractive')
-        [void]$startInfo.ArgumentList.Add('-EncodedCommand')
-        [void]$startInfo.ArgumentList.Add($encodedChildScript)
+        [void]$startInfo.ArgumentList.Add('-File')
+        [void]$startInfo.ArgumentList.Add($childScriptPath)
 
         try {
             $agentProc = [System.Diagnostics.Process]::new()
             $agentProc.StartInfo = $startInfo
+            $runtimeStatusPath = Join-Path $script:TT.LocalDataRoot 'Artifacts\agent-runtime\current-status.json'
             if (-not $agentProc.Start()) {
                 throw 'Failed to start child PowerShell process for TechToolbox.Agent.'
             }
-            $runtimeStatusPath = Join-Path $script:TT.LocalDataRoot 'Artifacts\agent-runtime\current-status.json'
+            $agentProcessStarted = $true
 
             $approvalRequestPrefix = '__TT_APPROVAL_REQUEST__:'
             $approvalDecisionCache = [System.Collections.Generic.Dictionary[string, TechToolbox.Agent.Core.DestructiveAuthorizationScope]]::new([System.StringComparer]::Ordinal)
@@ -3076,7 +3081,7 @@ finally {
         throw
     }
     finally {
-        if ($null -ne $agentProc) {
+        if ($agentProcessStarted -and $null -ne $agentProc -and -not [string]::IsNullOrWhiteSpace($runtimeStatusPath)) {
             $null = Get-TTAgentPostflightDecision `
                 -RuntimeStatusPath $runtimeStatusPath `
                 -ProcessId $agentProc.Id `
@@ -3158,6 +3163,10 @@ finally {
             try { Remove-Item -LiteralPath $requestPath -Force } catch { }
         }
 
+        if (-not [string]::IsNullOrWhiteSpace($childScriptPath) -and (Test-Path -LiteralPath $childScriptPath -PathType Leaf)) {
+            try { Remove-Item -LiteralPath $childScriptPath -Force } catch { }
+        }
+
         if (-not [string]::IsNullOrWhiteSpace($toolCredentialPath) -and (Test-Path -LiteralPath $toolCredentialPath -PathType Leaf)) {
             try { Remove-Item -LiteralPath $toolCredentialPath -Force } catch { }
         }
@@ -3174,8 +3183,8 @@ finally {
 # SIG # Begin signature block
 # MIImyAYJKoZIhvcNAQcCoIImuTCCJrUCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCRMyggmzERnsYd
-# RYSDLstXbMGqqyVmHH6JtBxgewLufqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD+yUEkw8Qeq26M
+# eGIEOIQNP06iPvrPpjyam8I3ovVUDqCCIFgwggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -3352,31 +3361,31 @@ finally {
 # RGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNpZ25pbmcg
 # MjAyMSBDQQIQaUxS13LZ+T2yWtALNyBsbTANBglghkgBZQMEAgEFAKCBhDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCBr
-# uYwZ/rwNcIYbCblYGTCfqlANAMS/2VUDo/n+DPeKZzANBgkqhkiG9w0BAQEFAASC
-# AYAuog/+Angi+SAQVrcqv3I4TOO4vWSFRlaFMM7TJtgFryGXpf5mkpCPg0ocOfs+
-# HdWN3Gnk8eJ9Y3BN2io+JMkxZidAljsJA+udYwYotlIZ6u2aAfTWn3xJDoEFxaeU
-# xTH8ZvN800avJMqOstBHiV7yhNzP2dHj0S+s8GBUiH3WCwXy16e9ZqLLSSePA5Mm
-# pnIJyEX1Lk1rZKD3dNYqV7aVLSSMjeeMoxA300zVRhTIYCYOexdHNrrOEatCJjA5
-# ShF5CtGjnjy/tb0BBZ8cD4JJgkaJz3MMVbp/Ix0h6t9xd7wrhHi1EPYvw/pCFF8u
-# shls9jnWvnXSz+NW9nw8DtYUTHnaNtvmMovECkAuuy3lCVCaz7TrVzBHgjxauHP5
-# S+guJHUABq7gNJMGiCQZxrzG+IlJkPyo/XBGPZ0at7F5MklX24FBGhwJNf9ItF91
-# afuOJa7Mxkx8So+RjlMXpmMnt2r2BNqMNy+4VWReUPqV6i/yXabm6cYR2WkTVh75
-# hkuhggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJBDEiBCAj
+# XyF3nPBBpwO65QJkIYwEORM7BS8swu7IqCaRfg0RhTANBgkqhkiG9w0BAQEFAASC
+# AYCON6t7mHs97xMP2fBza1vLPYdjcifGwAk9G6T5zt+JGqbTHT/U0OWIYdRwLiut
+# /qoLPT6zMzFroftnu0+ANDjV1Ayu/t4mjqGRKiPSf8Byvo+8kbLQpDZzUh6r67/H
+# eML09vUPyT/+sjt1gAiaf6O6nhD343R1oarRcjwPC3yRaiy1PwH9iRYFPO8K8q9V
+# 7Fs+djBIV8WaQWmWpd9JlctGybstG+yyX2toB5buhdy2UnyUOgqMlvuQRLTNfldV
+# k+YWAEcEHwGyIlh7ptfkKGdtPHG75w0xXRrwwmVCg30IRfoAHCY3HkVxG2qZV3ZT
+# ZeEZYXMKj7slQNDGANTMDA9jZvOUPhhMUe8Gt1aMosFJhPY7cqhiYUqHYdRkLy8h
+# gT1uNd239J8ymFaiRpXZRgMI7N9qSKnqnz6vp08/TQ1p30Om2o0Y4zX9rvfQRULP
+# p6h2lnDsYwvvxbMbJRqBhQpDgMxqjfx73SeDiwyaNW69q3I9iIWR026K5HGXUHl9
+# 95ehggMmMIIDIgYJKoZIhvcNAQkGMYIDEzCCAw8CAQEwfTBpMQswCQYDVQQGEwJV
 # UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
 # dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExAhAI
 # T9wzT35FTtvDD4/5khg1MA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsG
-# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTI2MDEyNDI1WjAvBgkqhkiG
-# 9w0BCQQxIgQg65hjl2HNZI+7baMGU48SeoJti5OWO4u2OCCTWxrcxfIwDQYJKoZI
-# hvcNAQEBBQAEggIAbqRfpKTRLDR+Vtq66ylfWe6Q6CWy4b4/Lr3DhNrbrILBrc4E
-# YcrN9+t5bUWwE4QX91rV6ycWtwFrJpj+/d14jaSvg2i0El22zOeipXjEyDIXCThz
-# 3mHaUptl68Hp+QMePHvxnj/Ec9yOxpDmjKITkK1ivJi7KPmRnXwm7wKqEFPbEAxI
-# xqccXjfxO/M2NKy30mBW0rm3IOSxztOXQaoXWId51dF/qdQqaSmE4Wan9Wjjf6MI
-# GwQ7rluqnlNYD4tqANiozV848Wc3KeJav91hxJwVH4MUzBxuOJLelNmAyIiKhjfO
-# lt8QQUIoH8krV2i9ZDFtvBORfeGdaMxy4qQIffbfS9Wp1lcJTAzTSE5fKgiOzM2m
-# Xe+6IGbtvh2KSYPvKhesxOFALVtRyjMmyxDzWF50Ykf1kJTI+KuQIb7+QFQOsUr2
-# vMONSiiuuBV3YQoFoiaOYrUo9OE4KdjlqKeahavLZXCsh6ibsP41KuD7UjIql6qY
-# oX18bOiYoCt2QkdRF9MEfVr2eo12V/vYdoY37nkcbOEro0qcPG1D/8umS/U7nRC+
-# uEzd5bAWGN5nRL8/iAMoRPwV7TfumTze8rC3f/ZvBUWK3AsZSUx6fOe40MvUDurg
-# eocoXvhMng9Q79KLkgcqW51QPlxslqCVeZeziUTai6X+4tH7rb9nc7t3mjc=
+# CSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMTI3MjIxNDAzWjAvBgkqhkiG
+# 9w0BCQQxIgQgat5R48CGHMF6usaLMBB3GcH1VvecD+1e8NyFaJk5CVQwDQYJKoZI
+# hvcNAQEBBQAEggIAngTN3DzLqP84rfz1vHhC4jtxbOd4FpAbopXSuB/gcr7JT799
+# gph8mf+/sE9L5lclAwz6XSSdIwjmC7M43Ifj3ywbjB8otPmgusd4B9w+fTBJ3l47
+# tH9tzyB87yeo6SlJqh5KZFUvjX+12KRor9bi9HDf+ij5HL2R8iNk0IAQx24Vg53N
+# tTe2C4OyD5IptoimIbSMgSlSpva6ftlfMrlNDIjKWP1aM9PnAYddHP6k4sCzQqcE
+# xUDgh2DmCmzT6Noa/EFh8dc5eRrXLyrWq873TuxxlJUJHtMSaJpIqAAK1Eq2RlVG
+# pQXBXVLYJBacH0K5ADQR/ymoWEQzSHmYWt7kJyU8qqXd7TQxJj6WuSv1ct9MjNi4
+# tGi/YGHudQapIO7koZzNb6JHmMAzvO/7/TqhsOiAENJfxEGtCrzf6JbLW/oyTRSf
+# FhnAVZvIDF4MdWnmSNe5iMZ77gHWS+7ahGNknQWPstLLHoceC+ifadBHq7z0rOkD
+# Iarm5gcVuOElv290nj8oxSY4xaOAfHhRnNtWXbb1QA6l2M8dzMNZ6p6yhdtTBxaP
+# dBQ2Yvm5KMVgrpSVKK8ZM1uyBLZTuxBl/M12G73V/FZw34ijtfColf87EnETNVwG
+# L5qFVAk8CuPg2t7D+h1CgymYPB4IoTsBEk3SMqfAMFD9dfVW8s/G4feqs6A=
 # SIG # End signature block
