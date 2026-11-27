@@ -42,6 +42,13 @@ npm --version       # Should show 10.2.4
 uv --version        # Should show 0.5.3
 ```
 
+For child-process runtime consistency in this repository:
+
+```powershell
+$env:DOTNET_ROOT           # Should point to $env:LOCALAPPDATA\dotnet
+$env:DOTNET_ROLL_FORWARD   # Should be LatestMajor unless you explicitly override it
+```
+
 ## MCP Servers
 
 The following MCP servers are now available for the TechAgent:
@@ -57,12 +64,11 @@ The following MCP servers are now available for the TechAgent:
 
 ### .NET 8.0 Runtime
 
-The test projects target `net8.0`, but only .NET 10.0.12 runtime is currently installed. When running tests directly, you may see an error about missing .NET 8.0.
+The test projects target `net8.0`. If only .NET 10 runtime is installed, testhost can fail without roll-forward settings in child processes.
 
-**Workaround**: The .NET SDK is multi-targeting capable. The test framework will request the appropriate runtime components. If needed, you can:
+**Current setup behavior**: `Setup-Environment.ps1` now sets `DOTNET_ROLL_FORWARD=LatestMajor` (when not already set) and exports `DOTNET_ROOT`, so child processes can resolve runtime policy consistently.
 
-1. Build with .NET 10 SDK: `dotnet build --framework net10.0`
-2. Or install .NET 8.0 runtime separately if required by your build process
+If you need strict no-major-roll-forward behavior, set `DOTNET_ROLL_FORWARD` explicitly in your shell before running tests.
 
 ## Next Steps
 
