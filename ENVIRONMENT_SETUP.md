@@ -49,6 +49,17 @@ $env:DOTNET_ROOT           # Should point to $env:LOCALAPPDATA\dotnet
 $env:DOTNET_ROLL_FORWARD   # Should be LatestMajor unless you explicitly override it
 ```
 
+## One-time user bootstrap (dev machine)
+
+To persist the .NET runtime policy for your user profile (no system-wide change), run:
+
+```powershell
+.\Set-UserDotNetEnvironment.ps1
+```
+
+Script: `Set-UserDotNetEnvironment.ps1` (repo root).  
+This sets user-scoped `DOTNET_ROOT`, `DOTNET_ROOT_X64`, `DOTNET_ROLL_FORWARD=LatestMajor`, and `DOTNET_MULTILEVEL_LOOKUP=1`.
+
 ## MCP Servers
 
 The following MCP servers are now available for the TechAgent:
