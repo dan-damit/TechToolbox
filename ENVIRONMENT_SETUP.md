@@ -8,18 +8,18 @@ This document describes the automatic environment setup that has been configured
 The following tools have been installed in the shared environment to support the TechToolbox build and test pipeline:
 
 ### .NET SDK 10.0.112
-- **Location**: `C:\Users\danda\AppData\Local\dotnet`
+- **Location**: `$env:LOCALAPPDATA\dotnet`
 - **Status**: ✓ Installed
 - **Includes**: .NET Runtime 10.0.12, ASP.NET Core Runtime 10.0.12, Windows Desktop Runtime 10.0.12
 - **Purpose**: Build, test, and run the TechToolbox.Agent solution
 
 ### Node.js 20.11.0 with npm 10.2.4
-- **Location**: `C:\Users\danda\AppData\Local\nodejs`
+- **Location**: `$env:LOCALAPPDATA\nodejs`
 - **Status**: ✓ Installed
 - **Purpose**: Support for MCP (Model Context Protocol) servers used by the TechAgent
 
 ### uv 0.5.3 (Python Package Manager)
-- **Location**: `C:\Users\danda\AppData\Local\uv`
+- **Location**: `$env:LOCALAPPDATA\uv`
 - **Status**: ✓ Installed
 - **Purpose**: Support for Python-based MCP servers (git integration)
 
@@ -69,20 +69,6 @@ The test projects target `net8.0`, but only .NET 10.0.12 runtime is currently in
 1. **Start a new PowerShell session** - The PATH configuration in the profile will apply automatically
 2. **Run the TechAgent** - The environment is now configured to support all MCP servers
 3. **Run tests** - Use `dotnet test` command as normal
-
-## Troubleshooting
-
-If tools are not found in a new PowerShell session:
-
-1. Verify the PowerShell profile exists and contains the tool paths
-2. Check that the installation directories exist:
-   - `C:\Users\danda\AppData\Local\dotnet\dotnet.exe`
-   - `C:\Users\danda\AppData\Local\nodejs\node.exe`
-   - `C:\Users\danda\AppData\Local\uv\uv.exe`
-3. If needed, manually set the PATH in PowerShell:
-   ```powershell
-   $env:PATH = "C:\Users\danda\AppData\Local\dotnet;C:\Users\danda\AppData\Local\nodejs;C:\Users\danda\AppData\Local\uv;$env:PATH"
-   ```
 
 ## Environment Isolation
 

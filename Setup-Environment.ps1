@@ -17,9 +17,9 @@
 #>
 
 $toolPaths = @(
-    "C:\Users\danda\AppData\Local\dotnet",
-    "C:\Users\danda\AppData\Local\nodejs",
-    "C:\Users\danda\AppData\Local\uv"
+    "$env:LOCALAPPDATA\dotnet",
+    "$env:LOCALAPPDATA\nodejs",
+    "$env:LOCALAPPDATA\uv"
 )
 
 Write-Host "TechToolbox Environment Setup" -ForegroundColor Green
