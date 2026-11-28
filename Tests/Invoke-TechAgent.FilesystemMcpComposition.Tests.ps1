@@ -21,7 +21,7 @@ Describe 'Invoke-TechAgent filesystem MCP root composition' {
             $server = [pscustomobject]@{ name = 'filesystem'; arguments = @() }
             $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @('%TT_LocalDataRoot%') -PolicyStartupMode observe
 
-            $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem@1.0.0', [IO.Path]::GetFullPath($root))
+            $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem@2.4.1', [IO.Path]::GetFullPath($root))
             ($composed.arguments -join ' ') | Should -Not -Match '%TT_LocalDataRoot%'
             ($composed.arguments -join ' ') | Should -Not -Match ([regex]::Escape((Get-Location).Path))
         }
@@ -38,7 +38,7 @@ Describe 'Invoke-TechAgent filesystem MCP root composition' {
 
         $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @($authorizedRoot) -WriteDirectory @($narrowRoot)
 
-        $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem@1.0.0', [IO.Path]::GetFullPath($narrowRoot))
+        $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem@2.4.1', [IO.Path]::GetFullPath($narrowRoot))
         $composed.arguments | Should -Not -Contain ([IO.Path]::GetFullPath($authorizedRoot))
     }
 

@@ -13,8 +13,8 @@ The following tools have been installed in the shared environment to support the
 - **Includes**: .NET Runtime 10.0.12, ASP.NET Core Runtime 10.0.12, Windows Desktop Runtime 10.0.12
 - **Purpose**: Build, test, and run the TechToolbox.Agent solution
 
-### Node.js 20.11.0 with npm 10.2.4
-- **Location**: `$env:LOCALAPPDATA\nodejs`
+### Node.js 26.13.1 with npm 11.20.0
+- **Location**: `$env:ProgramFiles\nodejs`
 - **Status**: ✓ Installed
 - **Purpose**: Support for MCP (Model Context Protocol) servers used by the TechAgent
 
@@ -37,8 +37,8 @@ To verify the tools are available in a fresh PowerShell session:
 
 ```powershell
 dotnet --version    # Should show 10.0.112
-node --version      # Should show v20.11.0
-npm --version       # Should show 10.2.4
+node --version      # Should show v26.13.1
+npm --version       # Should show the installed npm version
 uv --version        # Should show 0.5.3
 ```
 

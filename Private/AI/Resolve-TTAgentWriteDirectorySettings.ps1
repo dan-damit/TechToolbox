@@ -107,12 +107,12 @@ function Resolve-TTAgentWriteDirectorySettings {
         throw 'Filesystem MCP authorization failed: no effective filesystem roots remain within the resolved agent-authorized path roots.'
     }
 
-    $filesystemPackage = '@modelcontextprotocol/server-filesystem@1.0.0'
+    $filesystemPackage = '@modelcontextprotocol/server-filesystem@2.4.1'
     foreach ($argument in @($ServerArguments)) {
         $argumentText = [string]$argument
         if ([string]::IsNullOrWhiteSpace($argumentText)) { continue }
         if ($argumentText -match '^@modelcontextprotocol/server-filesystem(?:@.+)?$') {
-            $filesystemPackage = if ($argumentText -eq '@modelcontextprotocol/server-filesystem') { '@modelcontextprotocol/server-filesystem@1.0.0' } else { $argumentText }
+            $filesystemPackage = if ($argumentText -eq '@modelcontextprotocol/server-filesystem') { '@modelcontextprotocol/server-filesystem@2.4.1' } else { $argumentText }
             break
         }
     }

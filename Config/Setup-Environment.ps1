@@ -17,8 +17,13 @@
 #>
 
 $dotnetRoot = "$env:LOCALAPPDATA\dotnet"
+$nodeRoot = if (Test-Path "$env:ProgramFiles\nodejs") {
+    "$env:ProgramFiles\nodejs"
+}
+elseif (Test-Path "$env:LOCALAPPDATA\nodejs") {
+    "$env:LOCALAPPDATA\nodejs"
+}
 $toolPaths = @(
-    "$env:LOCALAPPDATA\nodejs",
     "$env:LOCALAPPDATA\uv"
 )
 
@@ -52,6 +57,15 @@ foreach ($path in $toolPaths) {
         Write-Host "✗ Missing: $path" -ForegroundColor Red
         $allFound = $false
     }
+}
+
+if ($nodeRoot) {
+    Write-Host "✓ Found Node.js: $nodeRoot" -ForegroundColor Green
+    $env:PATH = "$nodeRoot;$env:PATH"
+}
+else {
+    Write-Host "✗ Missing: Node.js" -ForegroundColor Red
+    $allFound = $false
 }
 
 if ($allFound) {
