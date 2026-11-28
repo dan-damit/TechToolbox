@@ -1215,6 +1215,7 @@ function Write-TTAgentMarkdownLog {
         [int]$RagContextCharacters,
         [string]$RagModelConfigured,
         [string]$RagStatusReason,
+        [object]$PromptTransportStats,
         [int]$ExitCode,
         [string]$TranscriptFile,
         [DateTime]$StartedUtc,
@@ -1378,6 +1379,17 @@ function Write-TTAgentMarkdownLog {
     else {
         $RagStatusReason.TrimEnd()
     }
+    $promptTransportStatsText = if ($null -eq $PromptTransportStats) {
+        '(none)'
+    }
+    else {
+        try {
+            ($PromptTransportStats | ConvertTo-Json -Depth 8 -Compress)
+        }
+        catch {
+            '(unavailable)'
+        }
+    }
 
     $ingestionSummaryCandidates = [System.Collections.Generic.List[string]]::new()
     $localDataRoot = $env:TT_LocalDataRoot
@@ -1533,6 +1545,7 @@ function Write-TTAgentMarkdownLog {
         ('RagContextCharacters: {0}' -f $RagContextCharacters)
         ('RagModelConfigured: {0}' -f $ragModelConfiguredText)
         ('RagStatusReason: {0}' -f $ragStatusReasonText)
+        ('PromptTransportStatsJson: {0}' -f $promptTransportStatsText)
         'ToolTrace:'
         $toolTraceText
         'Reason:'

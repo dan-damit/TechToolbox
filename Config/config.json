@@ -274,18 +274,24 @@
         "localModerate": {
           "readFileSummaryThresholdChars": 30000,
           "maxToolResultChars": 30000,
-          "readFilePromptCompactThresholdChars": 12000
+          "readFilePromptCompactThresholdChars": 12000,
+          "userGoalMaxChars": 12000,
+          "goalMessageMaxChars": 50000
         },
         "frontierHigh": {
           "readFileSummaryThresholdChars": 90000,
           "maxToolResultChars": 90000,
           "readFilePromptCompactThresholdChars": 30000,
+          "userGoalMaxChars": 30000,
+          "goalMessageMaxChars": 120000,
           "llmMaxOutputTokens": 8192
         },
         "frontierXL": {
           "readFileSummaryThresholdChars": 1500000,
           "maxToolResultChars": 1000000,
           "readFilePromptCompactThresholdChars": 300000,
+          "userGoalMaxChars": 120000,
+          "goalMessageMaxChars": 220000,
           "llmMaxOutputTokens": 60000
         }
       },

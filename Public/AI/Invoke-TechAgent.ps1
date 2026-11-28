@@ -92,6 +92,10 @@ function Invoke-TechAgent {
         hint when prompt quality is weak. The command then continues with the
         rewritten prompt for this run only.
 
+    .PARAMETER PromptStats
+        Prints prompt transport diagnostics (budgets, delivered size/hash, and
+        provider-bound estimates) without changing prompt packing behavior.
+
     .PARAMETER OutputContract
         Final response format contract. `markdown` allows Markdown output,
         `plain-text` requires plain text only, and `json` requires valid JSON
@@ -252,6 +256,9 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [switch]$AutoRerunFromHint,
+
+        [Parameter()]
+        [switch]$PromptStats,
 
         [Parameter()]
         [ValidateSet('markdown', 'plain-text', 'json')]
@@ -661,6 +668,7 @@ function Invoke-TechAgent {
     $markdownRagContextCharacters = 0
     $markdownRagModelConfigured = '(none)'
     $markdownRagStatusReason = '(none)'
+    $promptTransportStats = $null
     $markdownToolTrace = @()
     $agentMetadataToolNames = @()
     $agentAvailableTools = @()
@@ -1998,17 +2006,23 @@ finally {
             'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'        = '30000'
             'TT_AGENT_MAX_TOOL_RESULT_CHARS'                    = '30000'
             'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '12000'
+            'TT_AGENT_USER_GOAL_MAX_CHARS'                      = '12000'
+            'TT_AGENT_GOAL_MESSAGE_MAX_CHARS'                   = '50000'
         }
         $adaptiveFrontierDefaults = @{
             'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'        = '90000'
             'TT_AGENT_MAX_TOOL_RESULT_CHARS'                    = '90000'
             'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '30000'
+            'TT_AGENT_USER_GOAL_MAX_CHARS'                      = '30000'
+            'TT_AGENT_GOAL_MESSAGE_MAX_CHARS'                   = '120000'
             'TT_AGENT_LLM_MAX_OUTPUT_TOKENS'                    = '8192'
         }
         $adaptiveFrontierXlDefaults = @{
             'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'        = '120000'
             'TT_AGENT_MAX_TOOL_RESULT_CHARS'                    = '120000'
             'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS' = '45000'
+            'TT_AGENT_USER_GOAL_MAX_CHARS'                      = '120000'
+            'TT_AGENT_GOAL_MESSAGE_MAX_CHARS'                   = '220000'
             'TT_AGENT_LLM_MAX_OUTPUT_TOKENS'                    = '12000'
         }
 
@@ -2025,6 +2039,8 @@ finally {
                     'readFileSummaryThresholdChars'       = 'TT_AGENT_READ_FILE_SUMMARY_THRESHOLD_CHARS'
                     'maxToolResultChars'                  = 'TT_AGENT_MAX_TOOL_RESULT_CHARS'
                     'readFilePromptCompactThresholdChars' = 'TT_AGENT_READ_FILE_PROMPT_COMPACT_THRESHOLD_CHARS'
+                    'userGoalMaxChars'                    = 'TT_AGENT_USER_GOAL_MAX_CHARS'
+                    'goalMessageMaxChars'                 = 'TT_AGENT_GOAL_MESSAGE_MAX_CHARS'
                     'llmMaxOutputTokens'                  = 'TT_AGENT_LLM_MAX_OUTPUT_TOKENS'
                 }
 
@@ -2118,6 +2134,8 @@ finally {
         $startInfo.Environment['TT_LocalDataRoot'] = $script:TT.LocalDataRoot
         $startInfo.Environment['TT_ModuleRoot'] = $script:TT.ModuleRoot
         $startInfo.Environment['TT_AGENT_RUNTIME_RUN_ID'] = $runtimeRunId
+        $startInfo.Environment['TT_AGENT_ADAPTIVE_LIMIT_PROFILE'] = $adaptiveLimitProfile
+        $startInfo.Environment['TT_AGENT_PROMPT_SOURCE'] = $promptSourceLabel
         $startInfo.Environment['TT_AGENT_REQUEST_PATH'] = $requestPath
         $startInfo.Environment['TT_AGENT_LLM_TEMPERATURE'] = [string]$qualitySettings.Temperature
         $startInfo.Environment['TT_AGENT_LLM_TOP_P'] = [string]$qualitySettings.TopP
@@ -2922,6 +2940,10 @@ finally {
                             $markdownRagStatusReason = $resolvedRagStatusReason
                         }
                     }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['PromptTransportStats']) {
+                        $promptTransportStats = $metadataObject.PromptTransportStats
+                    }
                 }
             }
             catch {
@@ -2977,6 +2999,75 @@ finally {
         if ($agentMetadataParsed -and $resolvedExecutionMode -eq 'execute' -and @($agentAvailableFileUpdateTools).Count -eq 0 -and @($agentMcpStartupErrors).Count -gt 0) {
             $startupErrorSummary = @($agentMcpStartupErrors) -join '; '
             Write-Log -Level Warn -Message ("No file-update tools were discovered for this execute run. MCP startup details: {0}" -f $startupErrorSummary)
+        }
+
+        if ($PromptStats.IsPresent) {
+            $resolvedPromptStats = $promptTransportStats
+            if ($null -eq $resolvedPromptStats) {
+                $promptBytes = [System.Text.Encoding]::UTF8.GetBytes([string]$Prompt)
+                $promptSha = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::HashData($promptBytes)).Replace('-', '')
+                $resolvedPromptStats = [pscustomobject]@{
+                    PromptStatus                           = 'EXACT'
+                    PromptSource                           = $promptSourceLabel
+                    AdaptiveProfile                        = $adaptiveLimitProfile
+                    OriginalPromptCharacters               = ([string]$Prompt).Length
+                    OriginalPromptLines                    = if ([string]::IsNullOrEmpty([string]$Prompt)) { 0 } else { (([string]$Prompt -split "`r?`n").Count) }
+                    OriginalPromptSha256                   = $promptSha
+                    UserGoalEffectiveBudgetCharacters      = 0
+                    DeliveredPromptCharacters              = ([string]$Prompt).Length
+                    DeliveredPromptSha256                  = $promptSha
+                    PromptCompacted                        = $false
+                    PromptTruncated                        = $false
+                    PromptCompactionReason                 = ''
+                    PromptTruncationReason                 = ''
+                    GoalMessageEffectiveBudgetCharacters   = 0
+                    PolicyCharacters                       = 0
+                    MemoryCharacters                       = 0
+                    RagProducedCharacters                  = 0
+                    RagDeliveredCharacters                 = 0
+                    OptionalSectionsOmitted                = @()
+                    FinalSystemMessageCharacters           = 0
+                    FinalUserMessageCharacters             = 0
+                    TotalProviderBoundMessageCharacters    = 0
+                    ApproximateProviderInputTokensEstimate = 0
+                    ConfiguredMaxOutputTokens             = $null
+                    EffectiveMaxOutputTokens              = 0
+                    ConfiguredMaxToolResultChars          = $null
+                    EffectiveMaxToolResultChars           = 0
+                }
+            }
+
+            Write-Host ''
+            Write-Host '=== Prompt Transport Stats ===' -ForegroundColor Cyan
+            Write-Host ("Status: {0}" -f [string]$resolvedPromptStats.PromptStatus) -ForegroundColor DarkCyan
+            Write-Host ("PromptSource: {0}" -f [string]$resolvedPromptStats.PromptSource) -ForegroundColor DarkCyan
+            Write-Host ("AdaptiveProfile: {0}" -f [string]$resolvedPromptStats.AdaptiveProfile) -ForegroundColor DarkCyan
+            Write-Host ("OriginalPromptChars: {0}" -f [int]$resolvedPromptStats.OriginalPromptCharacters) -ForegroundColor DarkCyan
+            Write-Host ("OriginalPromptLines: {0}" -f [int]$resolvedPromptStats.OriginalPromptLines) -ForegroundColor DarkCyan
+            Write-Host ("OriginalPromptSha256: {0}" -f [string]$resolvedPromptStats.OriginalPromptSha256) -ForegroundColor DarkCyan
+            Write-Host ("UserGoalEffectiveBudgetChars: {0}" -f [int]$resolvedPromptStats.UserGoalEffectiveBudgetCharacters) -ForegroundColor DarkCyan
+            Write-Host ("DeliveredPromptChars: {0}" -f [int]$resolvedPromptStats.DeliveredPromptCharacters) -ForegroundColor DarkCyan
+            Write-Host ("DeliveredPromptSha256: {0}" -f [string]$resolvedPromptStats.DeliveredPromptSha256) -ForegroundColor DarkCyan
+            Write-Host ("PromptCompacted: {0}" -f [bool]$resolvedPromptStats.PromptCompacted) -ForegroundColor DarkCyan
+            Write-Host ("PromptTruncated: {0}" -f [bool]$resolvedPromptStats.PromptTruncated) -ForegroundColor DarkCyan
+            Write-Host ("PromptCompactionReason: {0}" -f [string]$resolvedPromptStats.PromptCompactionReason) -ForegroundColor DarkCyan
+            Write-Host ("PromptTruncationReason: {0}" -f [string]$resolvedPromptStats.PromptTruncationReason) -ForegroundColor DarkCyan
+            Write-Host ("GoalMessageEffectiveBudgetChars: {0}" -f [int]$resolvedPromptStats.GoalMessageEffectiveBudgetCharacters) -ForegroundColor DarkCyan
+            Write-Host ("PolicyChars: {0}" -f [int]$resolvedPromptStats.PolicyCharacters) -ForegroundColor DarkCyan
+            Write-Host ("MemoryChars: {0}" -f [int]$resolvedPromptStats.MemoryCharacters) -ForegroundColor DarkCyan
+            Write-Host ("RagProducedChars: {0}" -f [int]$resolvedPromptStats.RagProducedCharacters) -ForegroundColor DarkCyan
+            Write-Host ("RagDeliveredChars: {0}" -f [int]$resolvedPromptStats.RagDeliveredCharacters) -ForegroundColor DarkCyan
+            Write-Host ("OptionalSectionsOmitted: {0}" -f (($resolvedPromptStats.OptionalSectionsOmitted | ForEach-Object { [string]$_ }) -join '; ')) -ForegroundColor DarkCyan
+            Write-Host ("FinalSystemMessageChars: {0}" -f [int]$resolvedPromptStats.FinalSystemMessageCharacters) -ForegroundColor DarkCyan
+            Write-Host ("FinalUserMessageChars: {0}" -f [int]$resolvedPromptStats.FinalUserMessageCharacters) -ForegroundColor DarkCyan
+            Write-Host ("ProviderBoundMessageChars: {0}" -f [int]$resolvedPromptStats.TotalProviderBoundMessageCharacters) -ForegroundColor DarkCyan
+            Write-Host ("ApproxProviderInputTokensEstimate: {0}" -f [int]$resolvedPromptStats.ApproximateProviderInputTokensEstimate) -ForegroundColor DarkCyan
+            Write-Host ("ConfiguredMaxOutputTokens: {0}" -f [string]$resolvedPromptStats.ConfiguredMaxOutputTokens) -ForegroundColor DarkCyan
+            Write-Host ("EffectiveMaxOutputTokens: {0}" -f [int]$resolvedPromptStats.EffectiveMaxOutputTokens) -ForegroundColor DarkCyan
+            Write-Host ("ConfiguredMaxToolResultChars: {0}" -f [string]$resolvedPromptStats.ConfiguredMaxToolResultChars) -ForegroundColor DarkCyan
+            Write-Host ("EffectiveMaxToolResultChars: {0}" -f [int]$resolvedPromptStats.EffectiveMaxToolResultChars) -ForegroundColor DarkCyan
+            Write-Host '=== End Prompt Transport Stats ===' -ForegroundColor Cyan
+            Write-Host ''
         }
 
         if ($resolvedOutputContract -eq 'markdown' -and -not [string]::IsNullOrWhiteSpace($message)) {
@@ -3222,6 +3313,7 @@ finally {
                     -RagContextCharacters $markdownRagContextCharacters `
                     -RagModelConfigured $markdownRagModelConfigured `
                     -RagStatusReason $markdownRagStatusReason `
+                    -PromptTransportStats $promptTransportStats `
                     -ExitCode $exitCode `
                     -TranscriptFile $transcriptPath `
                     -StartedUtc $runStartedUtc `

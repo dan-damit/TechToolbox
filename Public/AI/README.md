@@ -358,6 +358,7 @@ Invoke-TechAgent -PromptFile AI\Tasks\CurrentTask.txt
 - `-StrictPromptPreflight` blocks execution when prompt quality signals are too weak for reliable action.
 - `-AutoPromptHint` prints a preflight-ready prompt rewrite suggestion when warnings are detected.
 - `-AutoRerunFromHint` applies one prompt rewrite pass from the preflight hint and continues the run with the improved prompt.
+- `-PromptStats` prints prompt-transport diagnostics (budgets, hashes, delivered sizes, and estimated input tokens) without changing prompt packing.
 
 **Credential Handling for Tool Calls**
 
