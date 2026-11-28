@@ -43,7 +43,13 @@ function Compose-TTAgentFilesystemMcpServer {
         [Parameter()][ValidateSet('observe', 'enforce')][string]$PolicyStartupMode
     )
 
-    $filesystemWriteSettings = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory -AuthorizedPathRoots $AuthorizedPathRoots
+    $serverArguments = @()
+    $serverArgumentsProperty = $Server.PSObject.Properties['arguments']
+    if ($null -ne $serverArgumentsProperty -and $null -ne $serverArgumentsProperty.Value) {
+        $serverArguments = @($serverArgumentsProperty.Value)
+    }
+
+    $filesystemWriteSettings = Resolve-TTAgentWriteDirectorySettings -WriteDirectory $WriteDirectory -AuthorizedPathRoots $AuthorizedPathRoots -ServerArguments $serverArguments
     $Server.arguments = $filesystemWriteSettings.Arguments
     return $Server
 }
@@ -52,7 +58,8 @@ function Resolve-TTAgentWriteDirectorySettings {
     [CmdletBinding()]
     param(
         [Parameter()][string[]]$WriteDirectory,
-        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$AuthorizedPathRoots
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$AuthorizedPathRoots,
+        [Parameter()][AllowEmptyCollection()][string[]]$ServerArguments
     )
 
     $authorized = @($AuthorizedPathRoots | ForEach-Object { Resolve-TTAgentPathRoot -Path $_ })
@@ -100,12 +107,22 @@ function Resolve-TTAgentWriteDirectorySettings {
         throw 'Filesystem MCP authorization failed: no effective filesystem roots remain within the resolved agent-authorized path roots.'
     }
 
+    $filesystemPackage = '@modelcontextprotocol/server-filesystem@1.0.0'
+    foreach ($argument in @($ServerArguments)) {
+        $argumentText = [string]$argument
+        if ([string]::IsNullOrWhiteSpace($argumentText)) { continue }
+        if ($argumentText -match '^@modelcontextprotocol/server-filesystem(?:@.+)?$') {
+            $filesystemPackage = if ($argumentText -eq '@modelcontextprotocol/server-filesystem') { '@modelcontextprotocol/server-filesystem@1.0.0' } else { $argumentText }
+            break
+        }
+    }
+
     $allowedRoots = @($resolvedDirectories.ToArray())
     return [pscustomobject]@{
         FilesystemRoot   = $allowedRoots[0]
         AllowedRoots     = $allowedRoots
         EnvironmentRoots = ([string]::Join([System.IO.Path]::PathSeparator, $allowedRoots))
-        Arguments        = @('-y', '@modelcontextprotocol/server-filesystem') + $allowedRoots
+        Arguments        = @('-y', $filesystemPackage) + $allowedRoots
     }
 }
 

@@ -2976,7 +2976,7 @@ finally {
 
         if ($agentMetadataParsed -and $resolvedExecutionMode -eq 'execute' -and @($agentAvailableFileUpdateTools).Count -eq 0 -and @($agentMcpStartupErrors).Count -gt 0) {
             $startupErrorSummary = @($agentMcpStartupErrors) -join '; '
-            Write-Log -Level Warn -Message ("No file-update tools were discovered for this execute run. MCP startup diagnostics: {0}" -f $startupErrorSummary)
+            Write-Log -Level Warn -Message ("No file-update tools were discovered for this execute run. MCP startup details: {0}" -f $startupErrorSummary)
         }
 
         if ($resolvedOutputContract -eq 'markdown' -and -not [string]::IsNullOrWhiteSpace($message)) {

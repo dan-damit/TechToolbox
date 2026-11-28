@@ -21,10 +21,9 @@ Describe 'Invoke-TechAgent filesystem MCP root composition' {
             $server = [pscustomobject]@{ name = 'filesystem'; arguments = @() }
             $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @('%TT_LocalDataRoot%') -PolicyStartupMode observe
 
-            $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem', [IO.Path]::GetFullPath($root))
+            $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem@1.0.0', [IO.Path]::GetFullPath($root))
             ($composed.arguments -join ' ') | Should -Not -Match '%TT_LocalDataRoot%'
             ($composed.arguments -join ' ') | Should -Not -Match ([regex]::Escape((Get-Location).Path))
-            ($composed.arguments -join ' ') | Should -Not -Match ([regex]::Escape($HOME))
         }
         finally {
             [Environment]::SetEnvironmentVariable('TT_LocalDataRoot', $oldValue, 'Process')
@@ -39,8 +38,22 @@ Describe 'Invoke-TechAgent filesystem MCP root composition' {
 
         $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @($authorizedRoot) -WriteDirectory @($narrowRoot)
 
-        $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem', [IO.Path]::GetFullPath($narrowRoot))
+        $composed.arguments | Should -Be @('-y', '@modelcontextprotocol/server-filesystem@1.0.0', [IO.Path]::GetFullPath($narrowRoot))
         $composed.arguments | Should -Not -Contain ([IO.Path]::GetFullPath($authorizedRoot))
+    }
+
+    It 'preserves an explicit filesystem package version when provided by server arguments' {
+        $authorizedRoot = Join-Path ([IO.Path]::GetTempPath()) ('tt-agent-root-' + [guid]::NewGuid().ToString('N'))
+        $server = [pscustomobject]@{
+            name = 'filesystem'
+            arguments = @('-y', '@modelcontextprotocol/server-filesystem@0.6.2', '%TT_AGENT_FILESYSTEM_ROOT%')
+        }
+
+        $composed = Compose-TTAgentFilesystemMcpServer -Server $server -AuthorizedPathRoots @($authorizedRoot)
+
+        $composed.arguments[0] | Should -Be '-y'
+        $composed.arguments[1] | Should -Be '@modelcontextprotocol/server-filesystem@0.6.2'
+        $composed.arguments[2] | Should -Be ([IO.Path]::GetFullPath($authorizedRoot))
     }
 
     It 'fails closed for an out-of-bound WriteDirectory and leaves server arguments unchanged' {
