@@ -41,6 +41,38 @@ Get-SystemSnapshot
 Clear-BrowserProfileData -Browser Chrome -Profiles Default -WhatIf
 ```
 
+## External dependencies
+
+The module and TechAgent use the following external runtimes. Required means the
+core feature cannot start or is incomplete when it is absent; optional means it
+is needed only for a selected provider or MCP server.
+
+| Dependency | Required/optional | Used by | Notes |
+|---|---|---|---|
+| PowerShell 7.4+ | Required | Module commands, TechAgent host | TechToolbox is a PowerShell 7.4+ module. |
+| .NET 8 runtime or later | Required | TechAgent and `techtoolbox-local` MCP adapter | Development builds require the matching .NET SDK. The MCP launcher resolves `dotnet` from `PATH` or standard installations. |
+| Node.js 24+ | Required for Node MCP servers | `filesystem`, `powershell`, `ripgrep`, and `tavily` MCP servers | Node 24 or later is required by filesystem MCP 2.4.1. Node 26 is recommended for this environment. `npx`/npm must be available for package-based MCP servers. |
+| npm/npx | Required for Node MCP servers | MCP server package launch | Packages are resolved and launched with `npx -y`; first use may require network access. |
+| uv/uvx | Required for Git MCP | `git` MCP server | Provides `mcp-server-git` through `uvx`. The Git executable must also be available on `PATH` for repository operations. |
+| Ollama | Optional | Default local LLM provider | Required when using the `ollama` provider. |
+| Cloud LLM provider/API key | Optional | `openai`, `azure-openai`, or `openai-compatible` providers | Configure the provider endpoint/model and corresponding API key through TechAgent settings or environment variables. |
+| Tavily API key | Optional | `tavily` MCP server | Configure `TAVILY_API_KEY` or the MCP secret/key setting before using Tavily tools. |
+| ripgrep | Optional | Ripgrep retrieval/backend | The MCP package and legacy retrieval backend require a compatible `rg` executable. |
+
+The packaged MCP configuration also includes these servers:
+
+- `techtoolbox-local`: bundled .NET MCP adapter for TechToolbox commands.
+- `filesystem`: Node-based filesystem access through `@modelcontextprotocol/server-filesystem@2.4.1`.
+- `powershell`: Node-based PowerShell MCP tools.
+- `ripgrep`: Node-based ripgrep MCP tools.
+- `tavily`: Node-based Tavily search MCP tools.
+- `git`: Python package-backed Git MCP tools through `uvx`.
+
+Package-based MCP servers may download dependencies on first launch. Restrict
+MCP `allowedTools`, authorized filesystem roots, network access, and credentials
+for the intended execution boundary. See [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)
+for workstation setup details.
+
 ## Architecture
 
 `TechToolbox.psd1` declares module metadata and exports; `TechToolbox.psm1`
