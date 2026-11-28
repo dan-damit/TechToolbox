@@ -115,6 +115,11 @@ PARAMETERS
         Example: if $dac contains PSCredential, Invoke-TechAgent will use it
         automatically for tool calls that support Credential.
 
+    -StartupProbe
+        Prints a formatted startup probe in the console after metadata parsing.
+        The probe includes discovered tool counts, file-update tool availability,
+        per-server MCP startup status, and captured MCP startup errors.
+
     -AutoPromptHint
         When preflight warnings or critical findings are present, prints a
         preflight-ready prompt rewrite suggestion to help improve prompt quality

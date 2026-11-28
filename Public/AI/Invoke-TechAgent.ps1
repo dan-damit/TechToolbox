@@ -78,6 +78,10 @@ function Invoke-TechAgent {
         Turns prompt preflight warnings into a blocking validation failure when
         prompt quality is too low for reliable execution.
 
+    .PARAMETER StartupProbe
+        Prints a console startup probe with discovered tool availability and MCP
+        server startup status after the agent response metadata is parsed.
+
     .PARAMETER AutoPromptHint
         Prints a preflight-ready prompt rewrite suggestion when warnings or
         critical preflight findings are detected. This does not alter the
@@ -239,6 +243,9 @@ function Invoke-TechAgent {
 
         [Parameter()]
         [switch]$StrictPromptPreflight,
+
+        [Parameter()]
+        [switch]$StartupProbe,
 
         [Parameter()]
         [switch]$AutoPromptHint,
@@ -656,6 +663,10 @@ function Invoke-TechAgent {
     $markdownRagStatusReason = '(none)'
     $markdownToolTrace = @()
     $agentMetadataToolNames = @()
+    $agentAvailableTools = @()
+    $agentAvailableFileUpdateTools = @()
+    $agentMcpStartupStatuses = @()
+    $agentMcpStartupErrors = @()
     $agentMetadataParsed = $false
     $capturedStdOut = ''
     $capturedStdErr = ''
@@ -2798,6 +2809,28 @@ finally {
                             })
                     }
 
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['AvailableTools']) {
+                        $agentAvailableTools = @($metadataObject.AvailableTools | ForEach-Object {
+                                if ($null -ne $_) { [string]$_ }
+                            })
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['AvailableFileUpdateTools']) {
+                        $agentAvailableFileUpdateTools = @($metadataObject.AvailableFileUpdateTools | ForEach-Object {
+                                if ($null -ne $_) { [string]$_ }
+                            })
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['McpStartupStatuses']) {
+                        $agentMcpStartupStatuses = @($metadataObject.McpStartupStatuses)
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['McpStartupErrors']) {
+                        $agentMcpStartupErrors = @($metadataObject.McpStartupErrors | ForEach-Object {
+                                if ($null -ne $_) { [string]$_ }
+                            })
+                    }
+
                     if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['RagUsed']) {
                         $markdownRagUsed = [bool]$metadataObject.RagUsed
                     }
@@ -2902,6 +2935,50 @@ finally {
         elseif ($null -ne $agentState -and $agentState.ContainsKey('toolNames')) {
             $markdownToolTrace = Convert-TTAgentToolTrace -ToolNames @($agentState['toolNames'])
         }
+
+        if ($StartupProbe.IsPresent) {
+            Write-Host ''
+            Write-Host '=== TechAgent Startup Probe ===' -ForegroundColor Cyan
+            Write-Host ("Execution mode: {0}" -f $resolvedExecutionMode) -ForegroundColor DarkCyan
+            Write-Host ("Configured MCP servers: {0}" -f @($normalizedMcpServersForChild).Count) -ForegroundColor DarkCyan
+            Write-Host ("Available tools discovered: {0}" -f @($agentAvailableTools).Count) -ForegroundColor DarkCyan
+            Write-Host ("Available file-update tools: {0}" -f $(if (@($agentAvailableFileUpdateTools).Count -eq 0) { '(none)' } else { @($agentAvailableFileUpdateTools) -join ', ' })) -ForegroundColor DarkCyan
+
+            if (@($agentMcpStartupStatuses).Count -gt 0) {
+                Write-Host ''
+                Write-Host 'MCP server startup status:' -ForegroundColor Yellow
+                foreach ($status in @($agentMcpStartupStatuses)) {
+                    $serverName = [string]$status.ServerName
+                    $startupSucceeded = [bool]$status.StartupSucceeded
+                    $allowedInMode = [bool]$status.AllowedInExecutionMode
+                    $discoveredCount = [int]$status.DiscoveredToolCount
+                    $filteredCount = [int]$status.FilteredToolCount
+                    $failure = [string]$status.Failure
+                    $marker = if ($startupSucceeded) { '[OK]' } elseif (-not $allowedInMode) { '[SKIP]' } else { '[FAIL]' }
+                    $markerColor = if ($startupSucceeded) { 'Green' } elseif (-not $allowedInMode) { 'DarkYellow' } else { 'Red' }
+                    Write-Host ("  {0} {1}  discovered={2}  allowed={3}" -f $marker, $serverName, $discoveredCount, $filteredCount) -ForegroundColor $markerColor
+                    if (-not [string]::IsNullOrWhiteSpace($failure)) {
+                        Write-Host ("      reason: {0}" -f $failure) -ForegroundColor DarkYellow
+                    }
+                }
+            }
+
+            if (@($agentMcpStartupErrors).Count -gt 0) {
+                Write-Host ''
+                Write-Host 'MCP startup errors:' -ForegroundColor Red
+                foreach ($startupError in @($agentMcpStartupErrors)) {
+                    Write-Host ("  - {0}" -f [string]$startupError) -ForegroundColor DarkYellow
+                }
+            }
+            Write-Host '=== End Startup Probe ===' -ForegroundColor Cyan
+            Write-Host ''
+        }
+
+        if ($agentMetadataParsed -and $resolvedExecutionMode -eq 'execute' -and @($agentAvailableFileUpdateTools).Count -eq 0 -and @($agentMcpStartupErrors).Count -gt 0) {
+            $startupErrorSummary = @($agentMcpStartupErrors) -join '; '
+            Write-Log -Level Warn -Message ("No file-update tools were discovered for this execute run. MCP startup diagnostics: {0}" -f $startupErrorSummary)
+        }
+
         if ($resolvedOutputContract -eq 'markdown' -and -not [string]::IsNullOrWhiteSpace($message)) {
             $message = Remove-TTAgentDuplicateMarkdownHeadings -Markdown $message -WindowLines 40
         }
