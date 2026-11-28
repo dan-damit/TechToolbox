@@ -668,6 +668,8 @@ function Invoke-TechAgent {
     $markdownRagContextCharacters = 0
     $markdownRagModelConfigured = '(none)'
     $markdownRagStatusReason = '(none)'
+    $markdownEmptyContentRecoveryCount = 0
+    $markdownEmptyContentTerminalReason = 'None'
     $promptTransportStats = $null
     $markdownToolTrace = @()
     $agentMetadataToolNames = @()
@@ -2944,6 +2946,17 @@ finally {
                     if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['PromptTransportStats']) {
                         $promptTransportStats = $metadataObject.PromptTransportStats
                     }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['EmptyContentRecoveryCount']) {
+                        $markdownEmptyContentRecoveryCount = [int]$metadataObject.EmptyContentRecoveryCount
+                    }
+
+                    if ($null -ne $metadataObject -and $metadataObject.PSObject.Properties['EmptyContentTerminalReason']) {
+                        $resolvedEmptyContentTerminalReason = [string]$metadataObject.EmptyContentTerminalReason
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedEmptyContentTerminalReason)) {
+                            $markdownEmptyContentTerminalReason = $resolvedEmptyContentTerminalReason
+                        }
+                    }
                 }
             }
             catch {
@@ -3313,6 +3326,8 @@ finally {
                     -RagContextCharacters $markdownRagContextCharacters `
                     -RagModelConfigured $markdownRagModelConfigured `
                     -RagStatusReason $markdownRagStatusReason `
+                    -EmptyContentRecoveryCount $markdownEmptyContentRecoveryCount `
+                    -EmptyContentTerminalReason $markdownEmptyContentTerminalReason `
                     -PromptTransportStats $promptTransportStats `
                     -ExitCode $exitCode `
                     -TranscriptFile $transcriptPath `

@@ -1215,6 +1215,8 @@ function Write-TTAgentMarkdownLog {
         [int]$RagContextCharacters,
         [string]$RagModelConfigured,
         [string]$RagStatusReason,
+        [int]$EmptyContentRecoveryCount,
+        [string]$EmptyContentTerminalReason,
         [object]$PromptTransportStats,
         [int]$ExitCode,
         [string]$TranscriptFile,
@@ -1378,6 +1380,12 @@ function Write-TTAgentMarkdownLog {
     }
     else {
         $RagStatusReason.TrimEnd()
+    }
+    $emptyContentTerminalReasonText = if ([string]::IsNullOrWhiteSpace($EmptyContentTerminalReason)) {
+        'None'
+    }
+    else {
+        $EmptyContentTerminalReason.TrimEnd()
     }
     $promptTransportStatsText = if ($null -eq $PromptTransportStats) {
         '(none)'
@@ -1545,6 +1553,8 @@ function Write-TTAgentMarkdownLog {
         ('RagContextCharacters: {0}' -f $RagContextCharacters)
         ('RagModelConfigured: {0}' -f $ragModelConfiguredText)
         ('RagStatusReason: {0}' -f $ragStatusReasonText)
+        ('EmptyContentRecoveryCount: {0}' -f $EmptyContentRecoveryCount)
+        ('EmptyContentTerminalReason: {0}' -f $emptyContentTerminalReasonText)
         ('PromptTransportStatsJson: {0}' -f $promptTransportStatsText)
         'ToolTrace:'
         $toolTraceText
